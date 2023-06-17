@@ -12,6 +12,7 @@ import (
 type DiscordBot struct {
 	session  *discordgo.Session
 	commands map[string]commands.BotCommand
+	features map[string]features.BotFeature
 }
 
 func NewBot(apiToken string) *DiscordBot {
@@ -24,6 +25,7 @@ func NewBot(apiToken string) *DiscordBot {
 	b := new(DiscordBot)
 	b.session = dcClient
 	b.commands = make(map[string]commands.BotCommand)
+	b.features = make(map[string]features.BotFeature)
 	b.init()
 
 	return b
@@ -34,10 +36,7 @@ func (b *DiscordBot) RegisterCommand(command commands.BotCommand) {
 }
 
 func (b *DiscordBot) RegisterFeature(feature features.BotFeature) {
-	err := feature.Init(b.session)
-	if err != nil {
-		log.Fatalf("Error registerung feature '%s': %v", feature.Name(), err)
-	}
+	b.features[feature.Name()] = feature
 
 	for _, command := range feature.Commands() {
 		b.commands[command.Name()] = command
@@ -48,6 +47,13 @@ func (b *DiscordBot) Run() {
 	err := b.session.Open()
 	if err != nil {
 		log.Fatalf("Cannot open the session: %v", err)
+	}
+
+	for _, feature := range b.features {
+		err := feature.Init(b.session)
+		if err != nil {
+			log.Fatalf("Error registerung feature '%s': %v", feature.Name(), err)
+		}
 	}
 
 	log.Println("Adding commands...")
