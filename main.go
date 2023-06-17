@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"github.com/spf13/viper"
 	"main/src"
-	"main/src/commands"
-	"main/src/repository"
+	"main/src/features"
 )
 
 func main() {
@@ -20,11 +19,8 @@ func main() {
 		panic(fmt.Errorf("fatal error config file: %w", err))
 	}
 
-	repo := repository.NewBirthdayRepo()
-
-	birthdayBot := bot.NewBot(viper.GetString("discord.apiToken"))
-	birthdayBot.RegisterCommand(commands.AddBirthday(repo))
-	//birthdayBot.RegisterCommand(commands.RemoveBirthday())
+	birthdayBot := bot.NewBot(viper.GetString("discord.token"))
+	birthdayBot.RegisterFeature(features.BirthdayRole())
 
 	birthdayBot.Run()
 }

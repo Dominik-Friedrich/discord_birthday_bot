@@ -1,5 +1,5 @@
 {
   "discord": {
-    "apiToken": "YOUR_TOKEN_HERE"
+    "token": "YOUR_TOKEN_HERE"
   }
 }

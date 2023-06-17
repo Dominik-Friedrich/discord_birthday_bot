@@ -4,6 +4,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"log"
 	"main/src/commands"
+	"main/src/features"
 	"os"
 	"os/signal"
 )
@@ -14,7 +15,7 @@ type DiscordBot struct {
 }
 
 func NewBot(apiToken string) *DiscordBot {
-	token := "Bot" + apiToken
+	token := "Bot " + apiToken
 	dcClient, err := discordgo.New(token)
 	if err != nil {
 		log.Fatalf("Invalid bot parameters: %v", err)
@@ -23,12 +24,24 @@ func NewBot(apiToken string) *DiscordBot {
 	b := new(DiscordBot)
 	b.session = dcClient
 	b.commands = make(map[string]commands.BotCommand)
+	b.init()
 
 	return b
 }
 
 func (b *DiscordBot) RegisterCommand(command commands.BotCommand) {
 	b.commands[command.Name()] = command
+}
+
+func (b *DiscordBot) RegisterFeature(feature features.BotFeature) {
+	err := feature.Init(b.session)
+	if err != nil {
+		log.Fatalf("Error registerung feature '%s': %v", feature.Name(), err)
+	}
+
+	for _, command := range feature.Commands() {
+		b.commands[command.Name()] = command
+	}
 }
 
 func (b *DiscordBot) Run() {
