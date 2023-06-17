@@ -22,6 +22,7 @@ func NewBot(apiToken string) *DiscordBot {
 
 	b := new(DiscordBot)
 	b.session = dcClient
+	b.commands = make(map[string]commands.BotCommand)
 
 	return b
 }
