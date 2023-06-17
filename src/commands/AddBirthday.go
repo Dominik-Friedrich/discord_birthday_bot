@@ -119,9 +119,3 @@ func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordg
 
 	return birthdayUser, errs
 }
-
-func AddBirthday(repo repository.BirthdayRepo) BotCommand {
-	cmd := new(addBirthdayCommand)
-	cmd.birthdays = repo
-	return cmd
-}
