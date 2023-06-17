@@ -46,5 +46,7 @@ func (d *Dummy) GetBirthday(birthday time.Time) (User, error) {
 }
 
 func NewBirthdayRepo() BirthdayRepo {
-	return new(Dummy)
+	repo := new(Dummy)
+	repo.birthdays = make(map[time.Time]User)
+	return repo
 }
