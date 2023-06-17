@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"log"
+	log "github.com/chris-dot-exe/AwesomeLog"
 	"main/src/repository"
 	"time"
 )
@@ -13,7 +13,7 @@ const (
 	addBirthday            = "add-birthday"
 	paramUser              = "user"
 	paramBirthday          = "birthday"
-	birthdayFormat         = "01/02"
+	birthdayFormat         = "02/01"
 	birthdayFormatReadable = "DD/MM"
 )
 
@@ -21,14 +21,23 @@ type addBirthdayCommand struct {
 	birthdays repository.BirthdayRepo
 }
 
+func AddBirthday(repo repository.BirthdayRepo) BotCommand {
+	cmd := new(addBirthdayCommand)
+	cmd.birthdays = repo
+	return cmd
+}
+
 func (a *addBirthdayCommand) Name() string {
 	return addBirthday
 }
 
 func (a *addBirthdayCommand) Command() *discordgo.ApplicationCommand {
+	neededPermissions := int64(discordgo.PermissionManageRoles)
+
 	return &discordgo.ApplicationCommand{
-		Name:        addBirthday,
-		Description: "Adds the birthday of a user",
+		Name:                     addBirthday,
+		Description:              "Adds the birthday of a user",
+		DefaultMemberPermissions: &neededPermissions,
 		Options: []*discordgo.ApplicationCommandOption{
 
 			{
@@ -99,6 +108,7 @@ func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordg
 		birthdayString := opt.StringValue()
 		birthday, err := time.Parse(birthdayFormat, birthdayString)
 		if err != nil {
+			log.PrettyPrint(log.INFO, birthdayString)
 			errs = errors.Join(fmt.Errorf("the birthday has to be in the format '%s'}", birthdayFormatReadable))
 
 		}
