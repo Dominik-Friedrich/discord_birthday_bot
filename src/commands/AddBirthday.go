@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	addBirthday            = "addBirthday"
+	addBirthday            = "add-birthday"
 	paramUser              = "user"
 	paramBirthday          = "birthday"
 	birthdayFormat         = "01/02"
@@ -40,7 +40,7 @@ func (a *addBirthdayCommand) Command() *discordgo.ApplicationCommand {
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        paramBirthday,
-				Description: "Birthday date of the user in format DD/MM/YYYY",
+				Description: fmt.Sprintf("Birthday date of the user in format '%s'", birthdayFormatReadable),
 				Required:    true,
 			},
 		},
@@ -112,6 +112,6 @@ func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordg
 
 func AddBirthday(repo repository.BirthdayRepo) BotCommand {
 	cmd := new(addBirthdayCommand)
-	cmd.birthdays = &repository.Dummy{}
+	cmd.birthdays = repo
 	return cmd
 }
