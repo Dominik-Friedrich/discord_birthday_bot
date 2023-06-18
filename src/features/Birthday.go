@@ -88,17 +88,17 @@ func (b Birthday) birthdayCheckGuilds() error {
 }
 
 func (b Birthday) asyncBirthdayCheckGuild(guildId string) {
-	err := b.resetBirthdayRole(guildId)
-	if err != nil {
-		log.Printf(log.WARN, "Guild-%s: error resetting birthday role: %v \n", guildId, err.Error())
-	}
-
 	birthdayUsers, err := b.birthdayRepo.GetBirthdayUsers(time.Now())
 	if err != nil {
 		log.Printf(log.WARN, "Guild-%s: error getting birthday users: %v \n", guildId, err.Error())
 	}
 	if len(birthdayUsers) <= 0 {
 		return
+	}
+
+	err = b.resetBirthdayRole(guildId)
+	if err != nil {
+		log.Printf(log.WARN, "Guild-%s: error resetting birthday role: %v \n", guildId, err.Error())
 	}
 
 	log.Println("Guild-%s: birthday users found:")
