@@ -55,8 +55,8 @@ func (a *removeBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.Intera
 	} else {
 		err := a.birthdays.RemoveBirthday(birthdayUser)
 		if err != nil {
-			log.Println(err.Error())
-			response = err.Error()
+			log.Println(log.WARN, err.Error())
+			response = "something went horribly wrong D:"
 		}
 	}
 

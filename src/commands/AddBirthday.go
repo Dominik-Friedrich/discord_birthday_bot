@@ -67,8 +67,8 @@ func (a *addBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.Interacti
 	} else {
 		err := a.birthdays.UpsertBirthday(birthdayUser)
 		if err != nil {
-			log.Println(err.Error())
-			response = err.Error()
+			log.Println(log.WARN, err.Error())
+			response = "something went horribly wrong D:"
 		}
 	}
 
