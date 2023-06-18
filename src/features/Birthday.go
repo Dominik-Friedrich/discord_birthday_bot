@@ -2,6 +2,7 @@ package features
 
 import (
 	"github.com/bwmarrin/discordgo"
+	"main/src/bot"
 	"main/src/commands"
 	"main/src/repository"
 )
@@ -31,14 +32,14 @@ type Birthday struct {
 	birthdayRole map[string]*discordgo.Role
 }
 
-func BirthdayRole() BotFeature {
+func BirthdayRole() bot.Feature {
 	bd := new(Birthday)
 	bd.birthdayRole = make(map[string]*discordgo.Role)
 	bd.birthdayRepo = repository.NewBirthdayRepo()
 	return bd
 }
 
-func (b Birthday) Init(session *discordgo.Session) error {
+func (b Birthday) Init(session *bot.Session) error {
 	for _, guild := range session.State.Guilds {
 		// init birthday role
 		birthdayRole, err := session.GuildRoleCreate(guild.ID, &birthdayRole)
@@ -55,8 +56,8 @@ func (b Birthday) Name() string {
 	return featureBirthday
 }
 
-func (b Birthday) Commands() []commands.BotCommand {
-	return []commands.BotCommand{
+func (b Birthday) Commands() []bot.Command {
+	return []bot.Command{
 		commands.AddBirthday(b.birthdayRepo),
 		commands.RemoveBirthday(b.birthdayRepo),
 	}

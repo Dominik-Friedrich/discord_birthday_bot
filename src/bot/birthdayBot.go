@@ -3,19 +3,22 @@ package bot
 import (
 	"github.com/bwmarrin/discordgo"
 	"log"
-	"main/src/commands"
-	"main/src/features"
 	"os"
 	"os/signal"
 )
 
 type DiscordBot struct {
-	session  *discordgo.Session
-	commands map[string]commands.BotCommand
-	features map[string]features.BotFeature
+	session  *Session
+	commands map[string]Command
+	features map[string]Feature
 }
 
-func NewBot(apiToken string) *DiscordBot {
+type Session struct {
+	ApplicationId string
+	*discordgo.Session
+}
+
+func NewBot(apiToken, applicationId string) *DiscordBot {
 	token := "Bot " + apiToken
 	dcClient, err := discordgo.New(token)
 	if err != nil {
@@ -23,24 +26,31 @@ func NewBot(apiToken string) *DiscordBot {
 	}
 
 	b := new(DiscordBot)
-	b.session = dcClient
-	b.commands = make(map[string]commands.BotCommand)
-	b.features = make(map[string]features.BotFeature)
+	b.session = &Session{
+		ApplicationId: applicationId,
+		Session:       dcClient,
+	}
+	b.commands = make(map[string]Command)
+	b.features = make(map[string]Feature)
 	b.init()
 
 	return b
 }
 
-func (b *DiscordBot) RegisterCommand(command commands.BotCommand) {
+func (b *DiscordBot) RegisterCommand(command Command) {
 	b.commands[command.Name()] = command
 }
 
-func (b *DiscordBot) RegisterFeature(feature features.BotFeature) {
+func (b *DiscordBot) RegisterFeature(feature Feature) {
 	b.features[feature.Name()] = feature
 
 	for _, command := range feature.Commands() {
 		b.commands[command.Name()] = command
 	}
+}
+
+func (b *DiscordBot) Session() *Session {
+	return b.session
 }
 
 func (b *DiscordBot) Run() {
@@ -64,7 +74,7 @@ func (b *DiscordBot) Run() {
 		}
 	}
 
-	defer func(client *discordgo.Session) {
+	defer func(client *Session) {
 		err := client.Close()
 		if err != nil {
 			log.Fatalf("error closing the discord session")

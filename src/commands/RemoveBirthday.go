@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
+	"main/src/bot"
 	"main/src/repository"
 )
 
@@ -15,7 +16,7 @@ type removeBirthdayCommand struct {
 	birthdays repository.BirthdayRepo
 }
 
-func RemoveBirthday(repo repository.BirthdayRepo) BotCommand {
+func RemoveBirthday(repo repository.BirthdayRepo) bot.Command {
 	cmd := new(removeBirthdayCommand)
 	cmd.birthdays = repo
 	return cmd

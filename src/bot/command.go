@@ -1,8 +1,8 @@
-package commands
+package bot
 
 import "github.com/bwmarrin/discordgo"
 
-type BotCommand interface {
+type Command interface {
 	Command() *discordgo.ApplicationCommand
 	Handle(s *discordgo.Session, i *discordgo.InteractionCreate)
 	Name() string

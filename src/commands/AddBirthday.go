@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
+	"main/src/bot"
 	"main/src/repository"
 	"time"
 )
@@ -21,7 +22,7 @@ type addBirthdayCommand struct {
 	birthdays repository.BirthdayRepo
 }
 
-func AddBirthday(repo repository.BirthdayRepo) BotCommand {
+func AddBirthday(repo repository.BirthdayRepo) bot.Command {
 	cmd := new(addBirthdayCommand)
 	cmd.birthdays = repo
 	return cmd
