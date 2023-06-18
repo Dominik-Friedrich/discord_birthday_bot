@@ -16,16 +16,16 @@ type User struct {
 type BirthdayRepo interface {
 	AddBirthday(user User) error
 	RemoveBirthday(user User) error
-	GetBirthday(birthday time.Time) (User, error)
+	GetBirthdayUsers(birthday time.Time) ([]User, error)
 }
 
 type Dummy struct {
-	birthdays map[string]User
+	birthdays map[string][]User
 }
 
 func (d *Dummy) AddBirthday(user User) error {
 	log.Println(log.INFO, "ADDED BIRTHDAY")
-	d.birthdays[asKey(user.Birthday)] = user
+	d.birthdays[asKey(user.Birthday)] = append(d.birthdays[asKey(user.Birthday)], user)
 	log.PrettyPrint(log.INFO, d.birthdays)
 
 	return nil
@@ -33,22 +33,22 @@ func (d *Dummy) AddBirthday(user User) error {
 
 func (d *Dummy) RemoveBirthday(user User) error {
 	log.Println(log.INFO, "REMOVED BIRTHDAY")
-	d.birthdays[asKey(user.Birthday)] = user
+	d.birthdays[asKey(user.Birthday)] = append(d.birthdays[asKey(user.Birthday)], user)
 	log.PrettyPrint(log.INFO, d.birthdays)
 
 	return nil
 }
 
-func (d *Dummy) GetBirthday(birthday time.Time) (User, error) {
+func (d *Dummy) GetBirthdayUsers(birthday time.Time) ([]User, error) {
 	if bd, ok := d.birthdays[asKey(birthday)]; ok {
 		return bd, nil
 	}
-	return User{}, errors.New("no user with birthday today")
+	return []User{}, errors.New("no user with birthday today")
 }
 
 func NewBirthdayRepo() BirthdayRepo {
 	repo := new(Dummy)
-	repo.birthdays = make(map[string]User)
+	repo.birthdays = make(map[string][]User)
 	return repo
 }
 
