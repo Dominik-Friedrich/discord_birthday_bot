@@ -97,6 +97,8 @@ func (b Birthday) asyncBirthdayCheckGuild(guildId string) {
 	if err != nil {
 		log.Printf(log.WARN, "Guild-%s: error getting birthday users: %v \n", guildId, err.Error())
 	}
+	log.Println("Guild-%s: birthday users found:")
+	log.PrettyPrint(log.INFO, birthdayUsers)
 
 	roleId, err := b.birthdayRepo.GetBirthdayRoleId(guildId)
 	if err != nil {
