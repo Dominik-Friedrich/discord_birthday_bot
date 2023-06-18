@@ -6,7 +6,7 @@ import (
 )
 
 type Repository interface {
-	AddBirthday(user User) error
+	UpsertBirthday(user User) error
 	RemoveBirthday(user User) error
 	GetBirthdayUsers(birthday time.Time) ([]User, error)
 
