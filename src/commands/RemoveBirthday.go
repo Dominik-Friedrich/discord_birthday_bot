@@ -48,7 +48,7 @@ func (a *removeBirthdayCommand) Command() *discordgo.ApplicationCommand {
 func (a *removeBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	birthdayUser, err := a.validateUserInput(s, i)
 
-	var response string
+	response := "successfully added the birthday!"
 	if err != nil {
 		log.Println(err.Error())
 		response = err.Error()

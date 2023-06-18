@@ -60,7 +60,7 @@ func (a *addBirthdayCommand) Command() *discordgo.ApplicationCommand {
 func (a *addBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	birthdayUser, err := a.validateUserInput(s, i)
 
-	var response string
+	response := "successfully added the birthday!"
 	if err != nil {
 		log.Println(err.Error())
 		response = err.Error()
