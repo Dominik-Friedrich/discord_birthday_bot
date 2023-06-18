@@ -108,13 +108,13 @@ func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordg
 
 	if opt, ok := optionMap[paramBirthday]; ok {
 		birthdayString := opt.StringValue()
-		birthday, err := time.Parse(birthdayFormat, birthdayString)
+		birthdayDate, err := time.Parse(birthdayFormat, birthdayString)
 		if err != nil {
 			log.PrettyPrint(log.INFO, birthdayString)
 			errs = errors.Join(fmt.Errorf("the birthday has to be in the format '%s'}", birthdayFormatReadable))
 
 		}
-		birthdayUser.Birthday = birthday
+		birthdayUser.Birthday = birthdayDate
 	} else {
 		errs = errors.Join(fmt.Errorf("you need to specify the birthday date. Format '%s'", birthdayFormatReadable))
 	}
