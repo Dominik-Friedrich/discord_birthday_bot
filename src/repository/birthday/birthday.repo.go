@@ -52,14 +52,16 @@ func (r Repo) UpsertBirthday(user User) error {
 func (r Repo) RemoveBirthday(user User) error {
 	log.Printf(log.INFO, "REMOVED BIRTHDAY: %v", user)
 
-	return r.db.Where(User{GuildId: user.GuildId, UserId: user.UserId}).Delete(&User{}).Error
+	return r.db.Unscoped().Where(User{GuildId: user.GuildId, UserId: user.UserId}).Delete(&User{}).Error
 }
 
 func (r Repo) GetBirthdayUsers(birthday time.Time) ([]User, error) {
 	log.Printf(log.INFO, "GET BIRTHDAYS FOR: %d/%d", birthday.Day(), birthday.Month())
 
 	var birthdayUsers []User
-	err := r.db.Where(&User{Birthday: birthday}).Find(&birthdayUsers).Error
+	month := birthday.Month()
+	day := birthday.Day()
+	err := r.db.Where("EXTRACT(MONTH FROM birthday) = ? AND EXTRACT(DAY FROM birthday) = ?", month, day).Find(&birthdayUsers).Error
 
 	return birthdayUsers, err
 }
