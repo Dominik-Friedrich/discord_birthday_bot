@@ -34,7 +34,8 @@ func (d *Dummy) SetBirthdayRoleId(guildId, userId string) error {
 }
 
 func (d *Dummy) GetBirthdayRoleId(guildId string) (string, error) {
-	return d.birthdayRoleId[guildId], nil
+	id := d.birthdayRoleId[guildId]
+	return id, nil
 }
 
 func NewBirthdayRepo() BirthdayRepo {
