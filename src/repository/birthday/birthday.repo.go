@@ -1,6 +1,10 @@
 package birthday
 
 import (
+	"errors"
+	log "github.com/chris-dot-exe/AwesomeLog"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"main/src/database"
 	"time"
 )
@@ -22,30 +26,54 @@ func NewRepository(connection *database.Connection) Repository {
 	br := new(Repo)
 	br.db = connection
 
+	err := br.initDatabase()
+	if err != nil {
+		log.Panicf("error initialising birthday repo: %v", err.Error())
+	}
+
 	return br
 }
 
-func (r Repo) AddBirthday(user User) error {
-	//TODO implement me
-	panic("implement me")
+func (r Repo) initDatabase() error {
+	return r.db.AutoMigrate(
+		User{},
+		Role{},
+	)
+}
+
+func (r Repo) UpsertBirthday(user User) error {
+	return r.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "birthday"}},
+		DoUpdates: clause.AssignmentColumns([]string{"birthday"})}).
+		Create(&user).Error
 }
 
 func (r Repo) RemoveBirthday(user User) error {
-	//TODO implement me
-	panic("implement me")
+	return r.db.Delete(&user).Error
 }
 
 func (r Repo) GetBirthdayUsers(birthday time.Time) ([]User, error) {
-	//TODO implement me
-	panic("implement me")
+	var birthdayUsers []User
+	err := r.db.Where(&User{Birthday: birthday}).Find(&birthdayUsers).Error
+
+	return birthdayUsers, err
 }
 
 func (r Repo) SetBirthdayRoleId(guildId, roleId string) error {
-	//TODO implement me
-	panic("implement me")
+	return r.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "guild_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"role_id"})}).
+		Create(&Role{GuildId: guildId, RoleId: roleId}).Error
 }
 
 func (r Repo) GetBirthdayRoleId(guildId string) (string, error) {
-	//TODO implement me
-	panic("implement me")
+	var birthdayRole Role
+	err := r.db.Where(&Role{GuildId: guildId}).First(&birthdayRole).Error
+
+	// acceptable error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", nil
+	}
+
+	return birthdayRole.RoleId, err
 }
