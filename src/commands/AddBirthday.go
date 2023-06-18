@@ -111,7 +111,7 @@ func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordg
 		birthdayDate, err := time.Parse(birthdayFormat, birthdayString)
 		if err != nil {
 			log.PrettyPrint(log.INFO, birthdayString)
-			errs = errors.Join(fmt.Errorf("the birthday has to be in the format '%s'}", birthdayFormatReadable))
+			errs = errors.Join(fmt.Errorf("the birthday has to be in the format '%s'", birthdayFormatReadable))
 
 		}
 		birthdayUser.Birthday = birthdayDate
