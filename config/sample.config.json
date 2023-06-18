@@ -1,6 +1,14 @@
 {
   "discord": {
-    "token": "YOUR_TOKEN_HERE",
+    "token": "BOT_TOKEN_HERE",
     "application_id": "APPLICATION_ID/BOT_USER_ID"
+  },
+  "database": {
+    "type": "postgres",
+    "host": "DB_HOST",
+    "port": "DB_PORT",
+    "user": "DB_USER",
+    "password": "DB_PASSWORD",
+    "database": "DB_DATABASE"
   }
 }

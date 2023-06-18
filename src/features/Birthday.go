@@ -8,7 +8,8 @@ import (
 	"github.com/go-co-op/gocron"
 	"main/src/bot"
 	"main/src/commands"
-	"main/src/repository"
+	"main/src/database"
+	"main/src/repository/birthday"
 	"time"
 )
 
@@ -36,12 +37,12 @@ var (
 
 type Birthday struct {
 	session      *bot.Session
-	birthdayRepo repository.BirthdayRepo
+	birthdayRepo birthday.Repository
 }
 
-func BirthdayRole() bot.Feature {
+func BirthdayRole(connection *database.Connection) bot.Feature {
 	b := new(Birthday)
-	b.birthdayRepo = repository.NewBirthdayRepo()
+	b.birthdayRepo = birthday.NewRepository(connection)
 	return b
 }
 
