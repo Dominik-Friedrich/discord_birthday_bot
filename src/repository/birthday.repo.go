@@ -17,10 +17,31 @@ type BirthdayRepo interface {
 	AddBirthday(user User) error
 	RemoveBirthday(user User) error
 	GetBirthdayUsers(birthday time.Time) ([]User, error)
+
+	SetBirthdayRoleId(guildId, roleId string) error
+	GetBirthdayRoleId(guildId string) (string, error)
 }
 
 type Dummy struct {
-	birthdays map[string][]User
+	birthdays      map[string][]User
+	birthdayRoleId map[string]string
+}
+
+func (d *Dummy) SetBirthdayRoleId(guildId, userId string) error {
+	d.birthdayRoleId[guildId] = userId
+
+	return nil
+}
+
+func (d *Dummy) GetBirthdayRoleId(guildId string) (string, error) {
+	return d.birthdayRoleId[guildId], nil
+}
+
+func NewBirthdayRepo() BirthdayRepo {
+	repo := new(Dummy)
+	repo.birthdays = make(map[string][]User)
+	repo.birthdays[asKey(time.Now())] = append(repo.birthdays[asKey(time.Now())], User{UserId: "806972973696155720"})
+	return repo
 }
 
 func (d *Dummy) AddBirthday(user User) error {
@@ -48,12 +69,6 @@ func (d *Dummy) GetBirthdayUsers(birthday time.Time) ([]User, error) {
 		return bd, nil
 	}
 	return []User{}, errors.New("no user with birthday today")
-}
-
-func NewBirthdayRepo() BirthdayRepo {
-	repo := new(Dummy)
-	repo.birthdays = make(map[string][]User)
-	return repo
 }
 
 func asKey(birthday time.Time) string {
