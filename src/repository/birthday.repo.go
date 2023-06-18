@@ -24,6 +24,10 @@ type Dummy struct {
 }
 
 func (d *Dummy) AddBirthday(user User) error {
+	if _, ok := d.birthdays[asKey(user.Birthday)]; !ok {
+		d.birthdays[asKey(user.Birthday)] = make([]User, 0)
+	}
+
 	log.Println(log.INFO, "ADDED BIRTHDAY")
 	d.birthdays[asKey(user.Birthday)] = append(d.birthdays[asKey(user.Birthday)], user)
 	log.PrettyPrint(log.INFO, d.birthdays)
