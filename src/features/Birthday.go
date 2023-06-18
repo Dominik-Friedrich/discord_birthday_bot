@@ -131,6 +131,11 @@ func (b Birthday) resetBirthdayRole(guildId string) error {
 	}
 
 	err = b.birthdayRepo.SetBirthdayRoleId(guildId, birthdayRole.ID)
+	if err != nil {
+		return err
+	}
+
+	err = b.setBirthdayAsHighAsPossible(guildId)
 
 	return err
 }
