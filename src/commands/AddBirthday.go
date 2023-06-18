@@ -6,7 +6,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"main/src/bot"
-	"main/src/repository"
+	"main/src/repository/birthday"
 	"time"
 )
 
@@ -19,10 +19,10 @@ const (
 )
 
 type addBirthdayCommand struct {
-	birthdays repository.BirthdayRepo
+	birthdays birthday.Repository
 }
 
-func AddBirthday(repo repository.BirthdayRepo) bot.Command {
+func AddBirthday(repo birthday.Repository) bot.Command {
 	cmd := new(addBirthdayCommand)
 	cmd.birthdays = repo
 	return cmd
@@ -84,7 +84,7 @@ func (a *addBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.Interacti
 	}
 }
 
-func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (repository.User, error) {
+func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (birthday.User, error) {
 	// Access options in the order provided by the user.
 	options := i.ApplicationCommandData().Options
 
@@ -95,11 +95,12 @@ func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordg
 	}
 
 	var errs error
-	var birthdayUser repository.User
+	var birthdayUser birthday.User
 
 	if option, ok := optionMap[paramUser]; ok {
 		usr := option.UserValue(s)
 		birthdayUser.UserId = usr.ID
+		birthdayUser.GuildId = i.GuildID
 		birthdayUser.UserName = usr.Username
 	} else {
 		errs = errors.Join(errors.New("you need to specify the birthday user"))

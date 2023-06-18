@@ -5,7 +5,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"main/src/bot"
-	"main/src/repository"
+	"main/src/repository/birthday"
 )
 
 const (
@@ -13,10 +13,10 @@ const (
 )
 
 type removeBirthdayCommand struct {
-	birthdays repository.BirthdayRepo
+	birthdays birthday.Repository
 }
 
-func RemoveBirthday(repo repository.BirthdayRepo) bot.Command {
+func RemoveBirthday(repo birthday.Repository) bot.Command {
 	cmd := new(removeBirthdayCommand)
 	cmd.birthdays = repo
 	return cmd
@@ -71,7 +71,7 @@ func (a *removeBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.Intera
 	}
 }
 
-func (a *removeBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (repository.User, error) {
+func (a *removeBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (birthday.User, error) {
 	// Access options in the order provided by the user.
 	options := i.ApplicationCommandData().Options
 
@@ -81,7 +81,7 @@ func (a *removeBirthdayCommand) validateUserInput(s *discordgo.Session, i *disco
 	}
 
 	var errs error
-	var birthdayUser repository.User
+	var birthdayUser birthday.User
 
 	if option, ok := optionMap[paramUser]; ok {
 		usr := option.UserValue(s)
