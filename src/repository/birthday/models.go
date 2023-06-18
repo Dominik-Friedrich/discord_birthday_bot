@@ -17,6 +17,6 @@ type User struct {
 
 type Role struct {
 	gorm.Model
-	GuildId string `gorm:"index:idx_guildRole,unique"`
-	RoleId  string `gorm:"index:idx_guildRole,unique"`
+	GuildId string `gorm:"unique"`
+	RoleId  string
 }
