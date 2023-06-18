@@ -97,6 +97,10 @@ func (b Birthday) asyncBirthdayCheckGuild(guildId string) {
 	if err != nil {
 		log.Printf(log.WARN, "Guild-%s: error getting birthday users: %v \n", guildId, err.Error())
 	}
+	if len(birthdayUsers) <= 0 {
+		return
+	}
+
 	log.Println("Guild-%s: birthday users found:")
 	log.PrettyPrint(log.INFO, birthdayUsers)
 
