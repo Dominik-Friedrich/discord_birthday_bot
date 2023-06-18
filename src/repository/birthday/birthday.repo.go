@@ -43,7 +43,7 @@ func (r Repo) initDatabase() error {
 
 func (r Repo) UpsertBirthday(user User) error {
 	return r.db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "birthday"}},
+		Columns:   []clause.Column{{Name: "user_id"}, {Name: "guild_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"birthday"})}).
 		Create(&user).Error
 }
