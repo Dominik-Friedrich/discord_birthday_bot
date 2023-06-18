@@ -9,14 +9,14 @@ import (
 
 type User struct {
 	gorm.Model
-	GuildId  string
-	UserId   string
+	GuildId  string `gorm:"index:idx_guildUser,unique"`
+	UserId   string `gorm:"index:idx_guildUser,unique"`
 	UserName string
 	Birthday time.Time
 }
 
 type Role struct {
 	gorm.Model
-	GuildId string
-	RoleId  string
+	GuildId string `gorm:"index:idx_guildRole,unique"`
+	RoleId  string `gorm:"index:idx_guildRole,unique"`
 }
