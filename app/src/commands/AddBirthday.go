@@ -72,6 +72,7 @@ func (a *addBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.Interacti
 			response = "something went horribly wrong D:"
 		}
 		if a.eventChannel != nil {
+			log.Printf(log.INFO, "firing birthday added event")
 			a.eventChannel <- birthdayUser
 		}
 	}

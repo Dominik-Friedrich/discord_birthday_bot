@@ -57,6 +57,7 @@ func (b Birthday) scheduleBirthdayAddedEventCheck() {
 		for {
 			select {
 			case birthdayUser, ok := <-b.birthdayAddedEvent:
+				log.Printf(log.INFO, "birthday added event: %v", birthdayUser)
 				if !ok {
 					return
 				}
