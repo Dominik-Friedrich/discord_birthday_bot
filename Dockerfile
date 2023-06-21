@@ -1,5 +1,5 @@
 FROM golang:1.20
-ARG config="prod.config.json"
+ARG config="sample.config.json"
 
 RUN mkdir -p /app
 
