@@ -5,6 +5,8 @@ their birthday and gives them a special birthday role.
 
 The position of role is always one below the bot.
 
+Users keep the role until the birthday of the next user
+
 # Docker
 Build the docker file
 > docker build -t birthday_bot .
