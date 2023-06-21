@@ -47,8 +47,6 @@ func BirthdayRole(connection *database.Connection) bot.Feature {
 	b.birthdayAddedEvent = make(chan birthday.User)
 	b.birthdayRepo = birthday.NewRepository(connection)
 
-	go b.scheduleBirthdayAddedEventCheck()
-
 	return b
 }
 
@@ -71,6 +69,7 @@ func (b Birthday) Init(session *bot.Session) error {
 	b.session = session
 
 	err := b.scheduleBirthdayCheck()
+	go b.scheduleBirthdayAddedEventCheck()
 
 	return err
 }
