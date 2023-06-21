@@ -26,6 +26,7 @@ type addBirthdayCommand struct {
 func AddBirthday(repo birthday.Repository, userAddedEvent chan birthday.User) bot.Command {
 	cmd := new(addBirthdayCommand)
 	cmd.birthdays = repo
+	cmd.eventChannel = userAddedEvent
 	return cmd
 }
 
