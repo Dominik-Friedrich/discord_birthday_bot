@@ -1,4 +1,5 @@
 {
+  "comment": "Use this config when building your docker image",
   "discord": {
     "token": "BOT_TOKEN_HERE",
     "application_id": "APPLICATION_ID/BOT_USER_ID"
