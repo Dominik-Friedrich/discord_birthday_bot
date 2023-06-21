@@ -59,7 +59,13 @@ func (b Birthday) scheduleBirthdayAddedEventCheck() {
 				if !ok {
 					return
 				}
-				b.asyncBirthdayCheckGuild(birthdayUser.GuildId)
+
+				today := time.Now()
+				if today.Day() == birthdayUser.Birthday.Day() {
+					if today.Month() == birthdayUser.Birthday.Month() {
+						go b.asyncBirthdayCheckGuild(birthdayUser.GuildId)
+					}
+				}
 			}
 		}
 	}()
