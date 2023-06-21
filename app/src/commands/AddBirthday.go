@@ -19,10 +19,11 @@ const (
 )
 
 type addBirthdayCommand struct {
-	birthdays birthday.Repository
+	birthdays    birthday.Repository
+	eventChannel chan birthday.User
 }
 
-func AddBirthday(repo birthday.Repository) bot.Command {
+func AddBirthday(repo birthday.Repository, userAddedEvent chan birthday.User) bot.Command {
 	cmd := new(addBirthdayCommand)
 	cmd.birthdays = repo
 	return cmd
@@ -69,6 +70,9 @@ func (a *addBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.Interacti
 		if err != nil {
 			log.Println(log.WARN, err.Error())
 			response = "something went horribly wrong D:"
+		}
+		if a.eventChannel != nil {
+			a.eventChannel <- birthdayUser
 		}
 	}
 

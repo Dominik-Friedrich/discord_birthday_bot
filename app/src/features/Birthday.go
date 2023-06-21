@@ -36,14 +36,34 @@ var (
 // TODO: remember which user has birthday role instead of deleting and recreating the entire role?
 
 type Birthday struct {
-	session      *bot.Session
-	birthdayRepo birthday.Repository
+	session            *bot.Session
+	birthdayRepo       birthday.Repository
+	birthdayAddedEvent chan birthday.User
 }
 
 func BirthdayRole(connection *database.Connection) bot.Feature {
 	b := new(Birthday)
+
+	b.birthdayAddedEvent = make(chan birthday.User)
 	b.birthdayRepo = birthday.NewRepository(connection)
+
+	go b.scheduleBirthdayAddedEventCheck()
+
 	return b
+}
+
+func (b Birthday) scheduleBirthdayAddedEventCheck() {
+	func() {
+		for {
+			select {
+			case birthdayUser, ok := <-b.birthdayAddedEvent:
+				if !ok {
+					return
+				}
+				b.asyncBirthdayCheckGuild(birthdayUser.GuildId)
+			}
+		}
+	}()
 }
 
 func (b Birthday) Init(session *bot.Session) error {
@@ -60,7 +80,7 @@ func (b Birthday) Name() string {
 
 func (b Birthday) Commands() []bot.Command {
 	return []bot.Command{
-		commands.AddBirthday(b.birthdayRepo),
+		commands.AddBirthday(b.birthdayRepo, b.birthdayAddedEvent),
 		commands.RemoveBirthday(b.birthdayRepo),
 	}
 }
