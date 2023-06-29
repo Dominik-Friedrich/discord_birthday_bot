@@ -1,6 +1,7 @@
 package Complaint
 
 import (
+	log "github.com/chris-dot-exe/AwesomeLog"
 	"main/src/bot"
 	"main/src/database"
 	"main/src/features/Complaint/commands"
@@ -22,12 +23,21 @@ func Complaint(connection *database.Connection) bot.Feature {
 
 	b.repo = complaint.NewRepository(connection)
 
+	b.replies = new(commands.Cache)
+
+	b.replies.Lock()
+	defer b.replies.Unlock()
+	replies, err := b.repo.GetComplaintReplies()
+	if err != nil {
+		log.Println(log.WARN, "unable to load complaint replies: ", err.Error())
+	}
+	b.replies.Refresh(replies)
+
 	return b
 }
 
 func (b *ComplaintFeature) Init(session *bot.Session) error {
 	b.session = session
-	b.replies = new(commands.Cache)
 
 	return nil
 }
