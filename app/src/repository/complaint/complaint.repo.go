@@ -43,11 +43,18 @@ func (r Repo) AddComplaintReply(reply Reply) error {
 }
 
 func (r Repo) GetComplaintReplies() ([]Reply, error) {
-	//TODO implement me
-	panic("implement me")
+	var complaintReplies []Reply
+
+	err := r.db.Find(&complaintReplies).Error
+
+	return complaintReplies, err
 }
 
 func (r Repo) AddComplaint(complaint Complaint) error {
-	//TODO implement me
-	panic("implement me")
+	// TODO: bug, user not being saved
+	err := r.db.FirstOrCreate(&complaint.User).Error
+	if err != nil {
+		return err
+	}
+	return r.db.Create(&complaint).Error
 }
