@@ -1,5 +1,4 @@
 FROM golang:1.20
-ARG config="sample.config.json"
 
 RUN mkdir -p /app
 
@@ -12,5 +11,4 @@ RUN go mod download && go mod verify
 COPY ./app .
 RUN go build -v -o app
 
-COPY ./app/config/$config ./config.json
-CMD ["./app", "--config", "./config.json"]
+CMD ["./app"]
