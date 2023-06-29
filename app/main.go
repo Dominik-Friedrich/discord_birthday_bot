@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/viper"
 	"main/src/bot"
 	"main/src/database"
-	"main/src/features"
+	"main/src/features/Birthday"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 
 	birthdayBot := bot.NewBot(viper.GetString("discord_token"), viper.GetString("discord_application_id"))
 
-	birthdayBot.RegisterFeature(features.BirthdayRole(db))
+	birthdayBot.RegisterFeature(Birthday.BirthdayRole(db))
 
 	birthdayBot.Run()
 }

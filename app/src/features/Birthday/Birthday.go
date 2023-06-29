@@ -1,4 +1,4 @@
-package features
+package Birthday
 
 import (
 	"errors"
@@ -7,8 +7,8 @@ import (
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"github.com/go-co-op/gocron"
 	"main/src/bot"
-	"main/src/commands"
 	"main/src/database"
+	commands2 "main/src/features/Birthday/commands"
 	"main/src/repository/birthday"
 	"time"
 )
@@ -86,8 +86,8 @@ func (b Birthday) Name() string {
 
 func (b Birthday) Commands() []bot.Command {
 	return []bot.Command{
-		commands.AddBirthday(b.birthdayRepo, b.birthdayAddedEvent),
-		commands.RemoveBirthday(b.birthdayRepo),
+		commands2.AddBirthday(b.birthdayRepo, b.birthdayAddedEvent),
+		commands2.RemoveBirthday(b.birthdayRepo),
 	}
 }
 
