@@ -6,6 +6,7 @@ import (
 	"main/src/bot"
 	"main/src/database"
 	"main/src/features/Birthday"
+	"main/src/features/Complaint"
 )
 
 func main() {
@@ -27,6 +28,7 @@ func main() {
 	birthdayBot := bot.NewBot(viper.GetString("discord_token"), viper.GetString("discord_application_id"))
 
 	birthdayBot.RegisterFeature(Birthday.BirthdayRole(db))
+	birthdayBot.RegisterFeature(Complaint.Complaint(db))
 
 	birthdayBot.Run()
 }
