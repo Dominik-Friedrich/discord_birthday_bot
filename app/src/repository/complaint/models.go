@@ -18,5 +18,5 @@ type Reply struct {
 	GuildId string `gorm:"index:idx_guildUser,unique"`
 	// UserId of the person that added the reply
 	UserId string `gorm:"index:idx_guildUser,unique"`
-	text   string `gorm:"uniqueIndex"`
+	Text   string `gorm:"uniqueIndex"`
 }
