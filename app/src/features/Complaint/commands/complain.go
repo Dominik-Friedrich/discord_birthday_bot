@@ -44,17 +44,16 @@ func (a *complainCommand) Command() *discordgo.ApplicationCommand {
 		Description:              "Adds the birthday of a user",
 		DefaultMemberPermissions: &neededPermissions,
 		Options: []*discordgo.ApplicationCommandOption{
-
-			{
-				Type:        discordgo.ApplicationCommandOptionUser,
-				Name:        paramUser,
-				Description: "User to complain about",
-			},
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        paramComplaint,
 				Description: "What are you complaining about?",
 				Required:    true,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionUser,
+				Name:        paramUser,
+				Description: "User to complain about",
 			},
 		},
 	}
