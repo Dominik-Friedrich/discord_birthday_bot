@@ -5,12 +5,12 @@ services:
     image: postgres
 
     ports:
-      - "5432:5432"
+      - ${BOT_DATABASE_PORT}:5432
 
     environment:
-      POSTGRES_USER: discord_bot
-      POSTGRES_PASSWORD: yog@vD9hmq4CGgDzNHP
-      POSTGRES_DB: discord_bot
+      POSTGRES_USER: ${BOT_DATABASE_USER}
+      POSTGRES_PASSWORD: ${BOT_DATABASE_PASSWORD}
+      POSTGRES_DB: ${BOT_DATABASE_DATABASE}
 
   bot:
     image: birthday_bot
