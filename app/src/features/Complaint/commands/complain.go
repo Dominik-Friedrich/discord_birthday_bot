@@ -7,6 +7,7 @@ import (
 	"main/src/bot"
 	"main/src/repository/birthday"
 	"main/src/repository/complaint"
+	"math/rand"
 	"time"
 )
 
@@ -27,6 +28,7 @@ func Complain(repo complaint.Repository, replies *Cache) bot.Command {
 	cmd := new(complainCommand)
 	cmd.repo = repo
 	cmd.replies = replies
+
 	return cmd
 }
 
@@ -73,6 +75,8 @@ func (a *complainCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 		}
 	}
 
+	response = a.randomReply()
+
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		// Ignore type for now, they will be discussed in "responses"
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -116,4 +120,32 @@ func (a *complainCommand) validateUserInput(s *discordgo.Session, i *discordgo.I
 	}
 
 	return newComplaint, err
+}
+
+func (a *complainCommand) randomReply() string {
+	a.replies.Lock()
+	defer a.replies.Unlock()
+
+	if !a.replies.Valid() {
+		err := a.renewCache()
+		if err != nil {
+			log.Println(log.WARN, "could not refresh reply cache: ", err.Error())
+		}
+	}
+
+	index := rand.Intn(a.replies.Len())
+
+	complaintReply, _ := a.replies.Get(index)
+
+	return complaintReply.Text
+}
+
+func (a *complainCommand) renewCache() error {
+	replies, err := a.repo.GetComplaintReplies()
+
+	if err != nil {
+		a.replies.Refresh(replies)
+	}
+
+	return err
 }
