@@ -5,13 +5,15 @@ go 1.20
 require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/chris-dot-exe/AwesomeLog v1.0.3
+	github.com/go-co-op/gocron v1.28.3
 	github.com/spf13/viper v1.16.0
+	gorm.io/driver/postgres v1.5.2
+	gorm.io/gorm v1.25.1
 )
 
 require (
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/go-co-op/gocron v1.28.3 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -35,6 +37,4 @@ require (
 	golang.org/x/text v0.10.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/postgres v1.5.2 // indirect
-	gorm.io/gorm v1.25.1 // indirect
 )
