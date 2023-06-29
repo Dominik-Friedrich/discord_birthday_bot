@@ -7,9 +7,9 @@ import (
 
 type Complaint struct {
 	gorm.Model
-	UserId        uint
-	birthday.User // reusing this because im lazy
-	text          string
+	UserId uint
+	User   *birthday.User // reusing this because im lazy
+	Text   string
 }
 
 type Reply struct {
