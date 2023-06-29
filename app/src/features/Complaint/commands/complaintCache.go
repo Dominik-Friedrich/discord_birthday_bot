@@ -12,42 +12,30 @@ type Cache struct {
 	sync.Mutex
 }
 
+// Get returns the element at index.
+// If the cache is invalid it still returns the element but also an error
 func (c *Cache) Get(index int) (complaint.Reply, error) {
-	c.Lock()
-	defer c.Unlock()
-
+	var err error
 	if !c.valid {
-		return complaint.Reply{}, errors.New("cache invalid")
+		err = errors.New("cache invalid")
 	}
 
-	return c.replies[index], nil
+	return c.replies[index], err
 }
 
 func (c *Cache) Len() int {
-	c.Lock()
-	defer c.Unlock()
-
 	return len(c.replies)
 }
 
 func (c *Cache) Valid() bool {
-	c.Lock()
-	defer c.Unlock()
-
 	return c.valid
 }
 
 func (c *Cache) Refresh(replies []complaint.Reply) {
-	c.Lock()
-	defer c.Unlock()
-
 	c.replies = replies
 	c.valid = true
 }
 
 func (c *Cache) Validate() {
-	c.Lock()
-	defer c.Unlock()
-
 	c.valid = true
 }
