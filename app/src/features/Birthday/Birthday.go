@@ -92,8 +92,7 @@ func (b Birthday) Commands() []bot.Command {
 }
 
 func (b Birthday) scheduleBirthdayCheck() error {
-	const tzOffset = 2 * 60 * 60
-	s := gocron.NewScheduler(time.FixedZone("UTC+2", tzOffset))
+	s := gocron.NewScheduler(time.Local)
 
 	_, err := s.Every(1).Day().At("0:30").StartImmediately().Do(b.birthdayCheckGuilds)
 	if err != nil {
