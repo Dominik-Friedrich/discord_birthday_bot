@@ -4,9 +4,9 @@ import (
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"github.com/spf13/viper"
 	"main/src/bot"
-	"main/src/database"
 	"main/src/features/Birthday"
 	"main/src/features/Complaint"
+	"main/src/lib/database"
 )
 
 func main() {

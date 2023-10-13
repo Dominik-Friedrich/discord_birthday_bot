@@ -2,7 +2,7 @@ package complaint
 
 import (
 	log "github.com/chris-dot-exe/AwesomeLog"
-	"main/src/database"
+	"main/src/lib/database"
 	"main/src/repository/birthday"
 )
 

@@ -5,7 +5,7 @@ import (
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"main/src/database"
+	"main/src/lib/database"
 	"time"
 )
 

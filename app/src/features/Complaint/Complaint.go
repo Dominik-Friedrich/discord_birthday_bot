@@ -3,8 +3,8 @@ package Complaint
 import (
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"main/src/bot"
-	"main/src/database"
 	"main/src/features/Complaint/commands"
+	"main/src/lib/database"
 	"main/src/repository/complaint"
 )
 

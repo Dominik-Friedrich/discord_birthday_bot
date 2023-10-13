@@ -7,8 +7,8 @@ import (
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"github.com/go-co-op/gocron"
 	"main/src/bot"
-	"main/src/database"
 	commands2 "main/src/features/Birthday/commands"
+	"main/src/lib/database"
 	"main/src/repository/birthday"
 	"time"
 )
