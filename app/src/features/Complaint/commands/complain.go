@@ -37,11 +37,11 @@ func (a *complainCommand) Name() string {
 }
 
 func (a *complainCommand) Command() *discordgo.ApplicationCommand {
-	neededPermissions := int64(discordgo.PermissionManageRoles)
+	neededPermissions := int64(discordgo.PermissionSendMessages)
 
 	return &discordgo.ApplicationCommand{
 		Name:                     complain,
-		Description:              "Adds the birthday of a user",
+		Description:              "Complain about something",
 		DefaultMemberPermissions: &neededPermissions,
 		Options: []*discordgo.ApplicationCommandOption{
 			{
