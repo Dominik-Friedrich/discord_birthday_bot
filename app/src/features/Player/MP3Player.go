@@ -3,6 +3,7 @@ package Player
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"github.com/bwmarrin/dgvoice"
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
@@ -28,7 +29,8 @@ const (
 // todo: compatibility for multiple guilds
 // todo: thread safety
 type player struct {
-	session *bot.Session
+	session   *bot.Session
+	currentVc *discordgo.VoiceConnection
 
 	currentlyPlaying string
 	queue            *deque.Deque[string]
@@ -51,7 +53,9 @@ type player struct {
 func Player() bot.Feature {
 	b := new(player)
 	b.queue = deque.New[string](defaultQueueSize)
-	b.queue = deque.New[string](defaultQueueSize)
+	b.history = deque.New[string](defaultQueueSize)
+
+	b.play = make(chan string)
 
 	b.playNext = make(chan struct{})
 	b.playPrevious = make(chan struct{})
@@ -61,6 +65,7 @@ func Player() bot.Feature {
 
 	b.state = Stopped
 	go b.asyncPlayRoutine()
+	go b.asyncPlayerRoutine()
 
 	return b
 }
@@ -78,7 +83,7 @@ func (p *player) Name() string {
 func (p *player) Commands() []bot.Command {
 	return []bot.Command{
 		Play(p),
-		//commands.Pause(),
+		Pause(p),
 		//commands.Forward(),
 		//commands.Backward(),
 	}
@@ -91,10 +96,19 @@ func (p *player) SupportedSites() []string {
 }
 
 // Play pushes the media into the queue. If the player is not currently playing it sends a signal to play the next media
-func (p *player) Play(mediaName string) error {
-	p.queueMutex.Lock()
-	p.queue.PushBack(mediaName)
-	p.queueMutex.Unlock()
+func (p *player) Play(interaction *discordgo.Interaction, mediaName string) error {
+	if p.currentVc == nil {
+		err := p.initVc(interaction)
+		if err != nil {
+			return err
+		}
+	}
+
+	if mediaName != "" {
+		p.queueMutex.Lock()
+		p.queue.PushBack(mediaName)
+		p.queueMutex.Unlock()
+	}
 
 	switch p.getState() {
 	case Stopped:
@@ -133,35 +147,40 @@ func (p *player) Playing() bool {
 }
 
 func (p *player) asyncPlayRoutine() {
-	select {
-	case ctx := <-p.play:
-		p.setState(Playing)
-		// todo: do this properly
-		vc := p.session.VoiceConnections["319170465379909642"]
-		p.playAudioFile(vc, ctx)
-		p.playNext <- struct{}{}
+	for {
+		select {
+		case ctx := <-p.play:
+			p.setState(Playing)
+			p.playAudioFile(p.currentVc, ctx)
+			p.playNext <- struct{}{}
+		}
 	}
 }
 
 func (p *player) asyncPlayerRoutine() {
 	var currentMedia string
-	select {
-	case <-p.playNext:
-		p.queueMutex.Lock()
-		p.historyMutex.Lock()
+	for {
+		select {
+		case <-p.playNext:
+			p.queueMutex.Lock()
+			p.historyMutex.Lock()
 
-		p.history.PushFront(currentMedia) // max history?
-		currentMedia = p.queue.PopFront()
+			if p.getState() != Stopped && currentMedia != "" {
+				p.history.PushFront(currentMedia) // max history?
+			}
+			if p.queue.Len() > 0 {
+				currentMedia = p.queue.PopFront()
+				log.Println(log.INFO, "playing next media: ", currentMedia)
+				p.play <- currentMedia
+			}
 
-		p.queueMutex.Unlock()
-		p.historyMutex.Unlock()
+			p.queueMutex.Unlock()
+			p.historyMutex.Unlock()
+		case <-p.playPrevious:
 
-		p.play <- currentMedia
-	case <-p.playPrevious:
-
+		}
+		log.Print(log.INFO, currentMedia)
 	}
-
-	log.Print(log.INFO, currentMedia)
 }
 
 // PlayAudioFile will play the given filename to the already connected
@@ -191,12 +210,6 @@ func (p *player) playAudioFile(v *discordgo.VoiceConnection, filename string) {
 	// prevent memory leak from residual ffmpeg streams
 	defer run.Process.Kill()
 
-	//when stop is sent, kill ffmpeg
-	go func() {
-		<-p.stop
-		err = run.Process.Kill()
-	}()
-
 	// Send "speaking" packet over the voice websocket
 	err = v.Speaking(true)
 	if err != nil {
@@ -214,33 +227,50 @@ func (p *player) playAudioFile(v *discordgo.VoiceConnection, filename string) {
 	send := make(chan []int16, 2)
 	defer close(send)
 
+	var wg sync.WaitGroup
+
 	close := make(chan bool)
 	go func() {
+		defer wg.Done()
 		dgvoice.SendPCM(v, send)
 		close <- true
 	}()
 
-	for {
-		// read data from ffmpeg stdout
-		audiobuf := make([]int16, frameSize*channels)
-		err = binary.Read(ffmpegbuf, binary.LittleEndian, &audiobuf)
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			return
-		}
-		if err != nil {
-			dgvoice.OnError("error reading from ffmpeg stdout", err)
-			return
-		}
+	// Producer Goroutine
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-close:
+				return
+			case <-p.stop:
+				log.Println(log.INFO, "player stopped")
+				return
+			case <-p.pause:
+				p.setState(Paused)
+				log.Println(log.INFO, "player paused")
+				<-p.unpause
+				p.setState(Playing)
 
-		// Send received PCM to the sendPCM channel
-		select {
-		case send <- audiobuf:
-		case <-close:
-			return
-		case <-p.stop:
-			return
+			default:
+				// read data from ffmpeg stdout
+				audiobuf := make([]int16, frameSize*channels)
+				err = binary.Read(ffmpegbuf, binary.LittleEndian, &audiobuf)
+				if err == io.EOF || err == io.ErrUnexpectedEOF {
+					return
+				}
+				if err != nil {
+					dgvoice.OnError("error reading from ffmpeg stdout", err)
+					return
+				}
+				// Send received PCM to the sendPCM channel
+				send <- audiobuf
+			}
 		}
-	}
+	}()
+
+	wg.Wait()
 }
 
 func (p *player) getState() PlayerState {
@@ -251,7 +281,36 @@ func (p *player) getState() PlayerState {
 }
 
 func (p *player) setState(newState PlayerState) {
+	log.Println(log.INFO, "player ", newState.String())
+
 	p.stateMutex.Lock()
 	p.state = newState
 	p.stateMutex.Unlock()
+}
+
+func (p *player) initVc(i *discordgo.Interaction) error {
+	g, err := p.session.State.Guild(i.GuildID)
+
+	// Look for the message sender in that guild's current voice states.
+	var channelId string
+	for _, vs := range g.VoiceStates {
+		if vs.UserID == i.Member.User.ID {
+			channelId = vs.ChannelID
+			break
+		}
+	}
+
+	if channelId == "" {
+		return errors.New("user not in voice channel")
+	}
+
+	// Join the provided voice channel.
+	vc, err := p.session.ChannelVoiceJoin(i.GuildID, channelId, false, true)
+	if err != nil {
+		return errors.New("could not join voice channel")
+	}
+
+	p.currentVc = vc
+
+	return nil
 }
