@@ -2,7 +2,7 @@ package bot
 
 import (
 	"github.com/bwmarrin/discordgo"
-	"log"
+	log "github.com/chris-dot-exe/AwesomeLog"
 	"os"
 	"os/signal"
 )
@@ -72,6 +72,7 @@ func (b *DiscordBot) Run() {
 		if err != nil {
 			log.Panicf("Cannot create '%v' command: %v", name, err)
 		}
+		log.Println("Added command: ", cmd.Name())
 	}
 
 	defer func(client *Session) {
