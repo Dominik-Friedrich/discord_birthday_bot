@@ -1,14 +1,15 @@
 package Player
 
-type PlayerState int
+type State int
 
 const (
-	Stopped PlayerState = 0
-	Paused  PlayerState = 1
-	Playing PlayerState = 2
+	Stopped State = iota
+	Paused
+	Playing
+	Idle
 )
 
-func (s PlayerState) String() string {
+func (s State) String() string {
 	switch s {
 	case Stopped:
 		return "stopped"

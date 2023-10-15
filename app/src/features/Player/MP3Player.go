@@ -20,10 +20,9 @@ const (
 
 	defaultQueueSize = 32
 
-	channels  int = 2                   // 1 for mono, 2 for stereo
-	frameRate int = 48000               // audio sampling rate
-	frameSize int = 960                 // uint16 size of each audio frame
-	maxBytes  int = (frameSize * 2) * 2 // max size of opus data
+	channels  int = 2     // 1 for mono, 2 for stereo
+	frameRate int = 48000 // audio sampling rate
+	frameSize int = 960   // uint16 size of each audio frame
 )
 
 // todo: compatibility for multiple guilds
@@ -31,6 +30,7 @@ const (
 type player struct {
 	session   *bot.Session
 	currentVc *discordgo.VoiceConnection
+	vcMutex   sync.Mutex
 
 	currentlyPlaying string
 	queue            *deque.Deque[string]
@@ -38,7 +38,7 @@ type player struct {
 	history          *deque.Deque[string]
 	historyMutex     sync.Mutex
 
-	state      PlayerState
+	state      State
 	stateMutex sync.RWMutex
 
 	play chan string
@@ -97,11 +97,9 @@ func (p *player) SupportedSites() []string {
 
 // Play pushes the media into the queue. If the player is not currently playing it sends a signal to play the next media
 func (p *player) Play(interaction *discordgo.Interaction, mediaName string) error {
-	if p.currentVc == nil {
-		err := p.initVc(interaction)
-		if err != nil {
-			return err
-		}
+	err := p.initVc(interaction)
+	if err != nil {
+		return err
 	}
 
 	if mediaName != "" {
@@ -112,6 +110,8 @@ func (p *player) Play(interaction *discordgo.Interaction, mediaName string) erro
 
 	switch p.getState() {
 	case Stopped:
+		fallthrough
+	case Idle:
 		p.playNext <- struct{}{}
 	case Paused:
 		p.unpause <- struct{}{}
@@ -120,8 +120,13 @@ func (p *player) Play(interaction *discordgo.Interaction, mediaName string) erro
 	return nil
 }
 
-func (p *player) Pause() error {
-	p.pause <- struct{}{}
+func (p *player) TogglePause() error {
+	switch p.getState() {
+	case Paused:
+		p.unpause <- struct{}{}
+	case Playing:
+		p.pause <- struct{}{}
+	}
 	return nil
 }
 
@@ -151,7 +156,13 @@ func (p *player) asyncPlayRoutine() {
 		select {
 		case ctx := <-p.play:
 			p.setState(Playing)
-			p.playAudioFile(p.currentVc, ctx)
+
+			p.vcMutex.Lock()
+			vc := p.currentVc
+			p.vcMutex.Unlock()
+
+			p.playAudioFile(vc, ctx)
+			p.setState(Idle)
 			p.playNext <- struct{}{}
 		}
 	}
@@ -168,6 +179,7 @@ func (p *player) asyncPlayerRoutine() {
 			if p.getState() != Stopped && currentMedia != "" {
 				p.history.PushFront(currentMedia) // max history?
 			}
+
 			if p.queue.Len() > 0 {
 				currentMedia = p.queue.PopFront()
 				log.Println(log.INFO, "playing next media: ", currentMedia)
@@ -176,6 +188,7 @@ func (p *player) asyncPlayerRoutine() {
 
 			p.queueMutex.Unlock()
 			p.historyMutex.Unlock()
+
 		case <-p.playPrevious:
 
 		}
@@ -229,11 +242,11 @@ func (p *player) playAudioFile(v *discordgo.VoiceConnection, filename string) {
 
 	var wg sync.WaitGroup
 
-	close := make(chan bool)
+	closeChan := make(chan bool)
 	go func() {
 		defer wg.Done()
 		dgvoice.SendPCM(v, send)
-		close <- true
+		closeChan <- true
 	}()
 
 	// Producer Goroutine
@@ -242,16 +255,17 @@ func (p *player) playAudioFile(v *discordgo.VoiceConnection, filename string) {
 		defer wg.Done()
 		for {
 			select {
-			case <-close:
+			case <-closeChan:
 				return
 			case <-p.stop:
 				log.Println(log.INFO, "player stopped")
 				return
 			case <-p.pause:
 				p.setState(Paused)
-				log.Println(log.INFO, "player paused")
+				p.speaking(false)
 				<-p.unpause
 				p.setState(Playing)
+				p.speaking(true)
 
 			default:
 				// read data from ffmpeg stdout
@@ -273,14 +287,14 @@ func (p *player) playAudioFile(v *discordgo.VoiceConnection, filename string) {
 	wg.Wait()
 }
 
-func (p *player) getState() PlayerState {
+func (p *player) getState() State {
 	p.stateMutex.RLock()
 	state := p.state
 	p.stateMutex.RUnlock()
 	return state
 }
 
-func (p *player) setState(newState PlayerState) {
+func (p *player) setState(newState State) {
 	log.Println(log.INFO, "player ", newState.String())
 
 	p.stateMutex.Lock()
@@ -289,6 +303,12 @@ func (p *player) setState(newState PlayerState) {
 }
 
 func (p *player) initVc(i *discordgo.Interaction) error {
+	p.vcMutex.Lock()
+	defer p.vcMutex.Unlock()
+	if p.currentVc != nil {
+		return nil
+	}
+
 	g, err := p.session.State.Guild(i.GuildID)
 
 	// Look for the message sender in that guild's current voice states.
@@ -313,4 +333,15 @@ func (p *player) initVc(i *discordgo.Interaction) error {
 	p.currentVc = vc
 
 	return nil
+}
+
+func (p *player) speaking(b bool) {
+	p.vcMutex.Lock()
+	if p.currentVc != nil {
+		err := p.currentVc.Speaking(b)
+		if err != nil {
+			log.Println(log.WARN, "error setting speaking status: ", err)
+		}
+	}
+	p.vcMutex.Unlock()
 }

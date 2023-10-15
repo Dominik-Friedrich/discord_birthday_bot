@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	pause = "pause"
+	togglepause = "togglepause"
 )
 
 type pauseCommand struct {
@@ -30,17 +30,20 @@ func (p pauseCommand) Command() *discordgo.ApplicationCommand {
 	)
 
 	return &discordgo.ApplicationCommand{
-		Name:                     pause,
-		Description:              "Pauses the player",
+		Name:                     togglepause,
+		Description:              "Pause/Unpauses the player",
 		DefaultMemberPermissions: &neededPermissions,
 	}
 }
 
 func (p pauseCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	response := "success_paused"
-	p.player.Pause()
+	err := p.player.TogglePause()
+	if err != nil {
+		response = "error_pausing"
+	}
 
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: response,
@@ -52,5 +55,5 @@ func (p pauseCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 }
 
 func (p pauseCommand) Name() string {
-	return pause
+	return togglepause
 }

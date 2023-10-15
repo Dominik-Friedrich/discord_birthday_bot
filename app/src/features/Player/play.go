@@ -39,6 +39,7 @@ func (p playCommand) Command() *discordgo.ApplicationCommand {
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        param,
 				Description: "URL to play audio from. Also supports search queries",
+				Required:    true,
 			},
 		},
 	}
