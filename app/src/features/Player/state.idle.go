@@ -31,7 +31,7 @@ func (s stateIdle) Play(i *discordgo.Interaction, mediaName string) error {
 }
 
 func (s stateIdle) Stop() error {
-	s.player.setState(s.player.stateStopped)
+	s.player.states.setState(Stopped)
 
 	return nil
 }

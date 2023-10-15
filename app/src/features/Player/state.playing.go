@@ -42,13 +42,13 @@ func (s statePlaying) Play(i *discordgo.Interaction, mediaName string) error {
 }
 
 func (s statePlaying) Stop() error {
-	s.player.setState(s.player.stateStopped)
+	s.player.states.setState(Stopped)
 
 	return nil
 }
 
 func (s statePlaying) TogglePause() error {
-	s.player.setState(s.player.statePaused)
+	s.player.states.setState(Paused)
 	return nil
 }
 

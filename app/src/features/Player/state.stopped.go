@@ -18,6 +18,8 @@ func (s stateStopped) State() StateName {
 //
 // Also stops any currently playing media.
 func (s stateStopped) OnEntry(_ State) {
+	s.player.dcPlayer.Stop()
+
 	s.player.vcMutex.Lock()
 	vc := s.player.currentVc
 	if vc != nil {
@@ -30,7 +32,6 @@ func (s stateStopped) OnEntry(_ State) {
 	}
 	s.player.vcMutex.Unlock()
 
-	s.player.stop <- struct{}{}
 }
 
 func (s stateStopped) OnExit() {
@@ -47,7 +48,7 @@ func (s stateStopped) Play(i *discordgo.Interaction, mediaName string) error {
 		return err
 	}
 
-	s.player.setState(s.player.stateIdle)
+	s.player.states.setState(Idle)
 
 	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/bwmarrin/dgvoice"
 	"github.com/bwmarrin/discordgo"
-	log "github.com/chris-dot-exe/AwesomeLog"
 	"io"
 	"layeh.com/gopus"
 	"os/exec"
@@ -82,7 +81,8 @@ func (p *AudioPlayer) asyncPlayRoutine() {
 	for {
 		select {
 		case ctx := <-p.play:
-			p.playAudioFile(ctx.Vc, ctx.MediaName)
+			exitReason := p.playAudioFile(ctx.Vc, ctx.MediaName)
+			ctx.ExitReason = exitReason
 			p.playDone <- ctx
 		}
 	}
@@ -130,7 +130,6 @@ func (p *AudioPlayer) playAudioFile(v *discordgo.VoiceConnection, filename strin
 		case <-doneChan:
 			return Finished
 		case <-p.stop:
-			log.Println(log.INFO, "player stopped")
 			return Stopped
 		case <-p.pause:
 			<-p.unpause

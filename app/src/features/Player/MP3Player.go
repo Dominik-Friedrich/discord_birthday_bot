@@ -27,19 +27,12 @@ type player struct {
 	dcPlayer       *discord.AudioPlayer
 	dcPlayDoneChan chan discord.PlayerContext
 
+	states       *StateMachine
 	currentMedia string
 	queue        *deque.Deque[string]
 	queueMutex   sync.Mutex
 	history      *deque.Deque[string]
 	historyMutex sync.Mutex
-
-	currentState State
-	//stateMutex   sync.RWMutex
-
-	stateStopped State
-	statePaused  State
-	statePlaying State
-	stateIdle    State
 
 	togglePause chan struct{}
 	play        chan struct {
@@ -63,20 +56,14 @@ func Player() bot.Feature {
 	b.stop = make(chan struct{})
 	b.idle = make(chan struct{})
 
-	b.stateStopped = stateStopped{b}
-	b.statePaused = statePaused{b}
-	b.statePlaying = statePlaying{b}
-	b.stateIdle = stateIdle{b}
-	b.currentState = b.stateStopped
-
-	b.idle = make(chan struct{})
-
 	b.dcPlayDoneChan = make(chan discord.PlayerContext)
 	dcPlayer, err := discord.NewPlayer(b.dcPlayDoneChan)
 	if err != nil {
 		log.Fatalf("error initializing discord player: ", err)
 	}
 	b.dcPlayer = dcPlayer
+
+	b.states = NewStateMachine(b)
 
 	go b.asyncPlayerStateControlRoutine()
 
@@ -97,6 +84,7 @@ func (p *player) Commands() []bot.Command {
 	return []bot.Command{
 		Play(p),
 		Pause(p),
+		Stop(p),
 		//commands.Forward(),
 		//commands.Backward(),
 	}
@@ -139,7 +127,7 @@ func (p *player) Stop() error {
 }
 
 func (p *player) Playing() bool {
-	state := p.getState().State()
+	state := p.states.getState().State()
 	return state == Stopped || state == Paused
 }
 
@@ -150,23 +138,21 @@ func (p *player) asyncPlayerStateControlRoutine() {
 		var err error
 		select {
 		case ctx := <-p.play:
-			err = p.getState().Play(ctx.dcI, ctx.mediaName)
+			err = p.states.getState().Play(ctx.dcI, ctx.mediaName)
 		case <-p.togglePause:
-			err = p.getState().TogglePause()
+			err = p.states.getState().TogglePause()
 		case <-p.stop:
-			err = p.getState().Stop()
+			err = p.states.getState().Stop()
 		//case <-p.idle:
 		case ctx := <-p.dcPlayDoneChan:
-			// FIXME: switch needed?
 			switch ctx.ExitReason {
 			case discord.Finished:
-				//p.setState(p.stateIdle)
+				p.states.setState(Idle)
 			case discord.Error:
 				fallthrough
 			case discord.Stopped:
-				//p.setState(p.stateStopped)
+				p.states.setState(Stopped)
 			}
-			p.setState(p.stateIdle)
 		}
 
 		if err != nil {
@@ -190,37 +176,13 @@ func (p *player) playNextMedia() {
 	vc := p.currentVc
 	p.vcMutex.Unlock()
 
-	p.setState(p.statePlaying)
+	p.states.setState(Playing)
 	p.dcPlayer.Play(discord.PlayerContext{
 		Vc:        vc,
 		MediaName: p.currentMedia,
 	})
 
 	log.Println(log.INFO, "playing next media: ", p.currentMedia)
-}
-
-func (p *player) getState() State {
-	//p.stateMutex.RLock()
-	state := p.currentState
-	//p.stateMutex.RUnlock()
-	return state
-}
-
-func (p *player) setState(newState State) {
-	//p.stateMutex.Lock()
-
-	if p.currentState.State() == newState.State() {
-		return
-	}
-	log.Printf(log.INFO, "player state change '%s' -> '%s'", p.currentState.State(), newState.State())
-
-	oldState := p.currentState
-	oldState.OnExit()
-
-	p.currentState = newState
-	p.currentState.OnEntry(oldState)
-
-	//p.stateMutex.Unlock()
 }
 
 func (p *player) initVc(i *discordgo.Interaction) error {

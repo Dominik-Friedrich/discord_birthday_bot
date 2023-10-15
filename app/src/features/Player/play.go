@@ -65,7 +65,7 @@ func (p playCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 }
 
 func (p playCommand) playAudio(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	err := p.player.Play(i.Interaction, "./resources/eaNI18GAxXs.opus")
+	err := p.player.Play(i.Interaction, "./resources/UldebI-QTFk.opus")
 	return err
 }
 
