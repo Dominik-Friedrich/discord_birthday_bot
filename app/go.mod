@@ -1,6 +1,6 @@
 module main
 
-go 1.21
+go 1.20
 
 require (
 	github.com/Kunal-Diwan/go-get-youtube v0.0.0-20210926052534-24a922d2894d
