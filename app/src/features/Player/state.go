@@ -1,23 +1,18 @@
 package Player
 
-type State int
-
 const (
-	Stopped State = iota
-	Paused
-	Playing
-	Idle
+	Stopped StateName = "stopped"
+	Paused  StateName = "paused"
+	Playing StateName = "playing"
+	Idle    StateName = "idle"
 )
 
-func (s State) String() string {
-	switch s {
-	case Stopped:
-		return "stopped"
-	case Paused:
-		return "paused"
-	case Playing:
-		return "playing"
-	}
+type State interface {
+	OnEntry(oldState State)
+	OnExit()
+	State() StateName
 
-	return "unkown status"
+	IPlayer
 }
+
+type StateName string

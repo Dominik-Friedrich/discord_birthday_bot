@@ -10,8 +10,3 @@ type IPlayer interface {
 	Backward() error
 	Playing() bool
 }
-
-type WebPlayer interface {
-	IPlayer
-	SupportedSites() []string
-}

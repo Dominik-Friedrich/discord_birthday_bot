@@ -1,0 +1,75 @@
+package Player
+
+import (
+	"errors"
+	"github.com/bwmarrin/discordgo"
+	log "github.com/chris-dot-exe/AwesomeLog"
+)
+
+type stateStopped struct {
+	player *player
+}
+
+func (s stateStopped) State() StateName {
+	return Stopped
+}
+
+// OnEntry disconnects and closes voice channel if bot is currently connected to one.
+//
+// Also stops any currently playing media.
+func (s stateStopped) OnEntry(_ State) {
+	s.player.vcMutex.Lock()
+	vc := s.player.currentVc
+	if vc != nil {
+		err := vc.Disconnect()
+		if err != nil {
+			log.Println(log.WARN, "error disconnecting from voice channel: ", err)
+		}
+		vc.Close()
+		s.player.currentVc = nil
+	}
+	s.player.vcMutex.Unlock()
+
+	s.player.stop <- struct{}{}
+}
+
+func (s stateStopped) OnExit() {
+}
+
+func (s stateStopped) Play(i *discordgo.Interaction, mediaName string) error {
+	err := s.player.initVc(i)
+	if err != nil {
+		return err
+	}
+
+	err = s.player.AddQueueFront(mediaName)
+	if err != nil {
+		return err
+	}
+
+	s.player.setState(s.player.stateIdle)
+
+	return nil
+}
+
+func (s stateStopped) Stop() error {
+	return nil // todo error for discord reply?
+}
+
+func (s stateStopped) TogglePause() error {
+	return nil // todo error for discord reply?
+}
+
+func (s stateStopped) Forward() error {
+	//TODO implement me
+	return errors.New("unimplemented feature")
+}
+
+func (s stateStopped) Backward() error {
+	//TODO implement me
+	return errors.New("unimplemented feature")
+}
+
+func (s stateStopped) Playing() bool {
+	return false
+}
