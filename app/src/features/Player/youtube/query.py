@@ -9,7 +9,7 @@ ydl_opts = {
 }
 
 
-def search_video_and_get_id_duration(search_query):
+def search_get_video_data(search_query):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
             # Search for the video
@@ -18,15 +18,14 @@ def search_video_and_get_id_duration(search_query):
             if 'entries' in search_results:
                 # Get the video ID and duration of the first search result
                 video_info = search_results['entries'][0]
-                video_id = video_info['id']
-                video_duration = video_info['duration']
-                return video_id, video_duration, None
+
+                return video_info, None
             else:
                 print("No search results found.")
-                return "", 0, None
+                return None, None
 
         except yt_dlp.DownloadError as e:
-            return "", 0, str(e)
+            return None, str(e)
 
 
 def main():
@@ -35,20 +34,18 @@ def main():
     args = parser.parse_args()
 
     search_query = args.query
-    video_id, video_duration, error = None, None, None
+    video_info, error = None, None
 
     try:
-        video_id, video_duration, error = search_video_and_get_id_duration(search_query)
+        video_info, error = search_get_video_data(search_query)
+    except Exception as e:
+        error = "Unknown error occured: " + str(e)
 
-    finally:
-        return_struct = {
-            "video": {
-                "id": video_id,
-                "duration": video_duration,
-            },
-            "error": error,
-        }
-        print(json.dumps(return_struct))
+    query_result = {
+        "video_info": video_info,
+        "error": error,
+    }
+    print(json.dumps(query_result))
 
 
 if __name__ == "__main__":
