@@ -1,10 +1,11 @@
 package youtube
 
 type QueryData struct {
-	VideoInfo struct {
-		Id      string `json:"id"`
-		Title   string `json:"title"`
-		Formats []struct {
+	VideoInfo *struct {
+		Filename string `json:"filename"`
+		Id       string `json:"id"`
+		Title    string `json:"title"`
+		Formats  []struct {
 			FormatId   string  `json:"format_id"`
 			FormatNote string  `json:"format_note,omitempty"`
 			Ext        string  `json:"ext"`
@@ -171,7 +172,7 @@ type QueryData struct {
 		Asr            int     `json:"asr"`
 		AudioChannels  int     `json:"audio_channels"`
 	} `json:"video_info"`
-	Error string `json:"error"`
+	Error *string `json:"error"`
 }
 
 type Caption struct {

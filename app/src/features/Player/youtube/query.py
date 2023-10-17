@@ -5,6 +5,7 @@ import yt_dlp
 
 # Initialize the yt-dlp downloader
 ydl_opts = {
+    'outtmpl': '%(id)s.%(ext)s',
     'quiet': True
 }
 
@@ -18,6 +19,7 @@ def search_get_video_data(search_query):
             if 'entries' in search_results:
                 # Get the video ID and duration of the first search result
                 video_info = search_results['entries'][0]
+                video_info['filename'] = ydl.prepare_filename(video_info)
 
                 return video_info, None
             else:

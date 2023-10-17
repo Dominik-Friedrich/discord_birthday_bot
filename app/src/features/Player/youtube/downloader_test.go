@@ -2,7 +2,7 @@ package youtube
 
 import (
 	"github.com/stretchr/testify/assert"
-	"reflect"
+	"os"
 	"testing"
 )
 
@@ -55,45 +55,33 @@ func Test_getVideoId(t *testing.T) {
 	}
 }
 
-func TestDownloader_GetAudio(t *testing.T) {
-	type args struct {
-		url string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    interface{}
-		wantErr bool
-	}{
-		{
-			name: "aa",
-			args: args{
-				url: "https://www.youtube.com/watch?v=n5lt-y8RcVc",
-			},
-			want:    nil,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := Downloader{}
-			got, err := d.GetAudio(tt.args.url)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetAudio() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetAudio() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
+func TestDownloader_Download_TooLong(t *testing.T) {
+	const testQuery = "https://www.youtube.com/watch?v=EIyixC9NsLI"
+
+	queryResult, err := Download(testQuery, Second(1), os.TempDir())
+	assert.Nil(t, err)
+	assert.NotNil(t, queryResult)
+	assert.Equal(t, "EIyixC9NsLI", queryResult.VideoInfo.Filename)
+	assert.Equal(t, "The video is too long", queryResult.Error)
+}
+
+func TestDownloader_Download_Ok(t *testing.T) {
+	const testQuery = "https://www.youtube.com/watch?v=EIyixC9NsLI"
+
+	queryResult, err := Download(testQuery, Second(600), os.TempDir())
+	assert.Nil(t, err)
+	assert.NotNil(t, queryResult)
+	assert.Equal(t, "EIyixC9NsLI", queryResult.VideoInfo.Filename)
+
+	var nilString *string
+	assert.Equal(t, nilString, queryResult.Error)
 }
 
 func TestDownloader_Query(t *testing.T) {
-	dl := Downloader{}
-	const testQuery = "badgers"
+	const testQuery = "https://www.youtube.com/watch?v=EIyixC9NsLI"
 
-	queryResult, err := dl.Query(testQuery)
+	queryResult, err := Query(testQuery)
 	assert.Nil(t, err)
 	assert.NotNil(t, queryResult)
+	assert.Equal(t, "EIyixC9NsLI", queryResult.VideoInfo.Filename)
 }

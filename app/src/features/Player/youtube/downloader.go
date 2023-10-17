@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Kunal-Diwan/go-get-youtube/youtube"
 	"io"
 	"net/url"
 	"os/exec"
@@ -13,7 +12,7 @@ import (
 	"runtime"
 )
 
-const videoIdQueryParam = "v"
+type Second int
 
 var (
 	ErrNoId                = errors.New("url has no video id query parameters")
@@ -21,32 +20,57 @@ var (
 	ErrVideoTooLong        = errors.New("result video is too long")
 )
 
-type Downloader struct {
-	maxVideoLength int
-}
+//func (d *Downloader) GetAudio(url string) (interface{}, error) {
+//	videoId, err := getVideoId(url)
+//	if err != nil {
+//		return nil, fmt.Errorf("could not extract videoId, url=%s, err: %s", url, err)
+//	}
+//
+//	video, err := youtube.Get(videoId)
+//	video = video
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return nil, nil
+//}
 
-func (d *Downloader) GetAudio(url string) (interface{}, error) {
-	videoId, err := getVideoId(url)
-	if err != nil {
-		return nil, fmt.Errorf("could not extract videoId, url=%s, err: %s", url, err)
-	}
-
-	video, err := youtube.Get(videoId)
-	video = video
-	if err != nil {
-		return nil, err
-	}
-
-	return nil, nil
-}
-
-func (d *Downloader) Query(query string) (*QueryData, error) {
+func Query(query string) (*QueryData, error) {
 	_, currentFile, _, _ := runtime.Caller(0)
 	currentDir := filepath.Dir(currentFile)
 
 	script := filepath.Join(currentDir, "query.py")
 
 	run := exec.Command("python", script, "-query", query)
+	queryOut, err := run.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("error creating query command: %s: %s", err, string(queryOut))
+	}
+
+	outBuf := bytes.NewBuffer(queryOut)
+
+	jsonQueryData, err := io.ReadAll(outBuf)
+	if err != nil {
+		return nil, fmt.Errorf("error reading query command output: %s", err)
+	}
+
+	var queryData QueryData
+	err = json.Unmarshal(jsonQueryData, &queryData)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling query command output: %s", err)
+	}
+
+	return &queryData, nil
+}
+
+func Download(query string, maxLength Second, destDir string) (*QueryData, error) {
+	_, currentFile, _, _ := runtime.Caller(0)
+	currentDir := filepath.Dir(currentFile)
+
+	script := filepath.Join(currentDir, "download.py")
+
+	run := exec.Command("python", script, "-query", query, "-max_duration", fmt.Sprintf("%d", maxLength))
+	run.Dir = destDir
 	queryOut, err := run.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("error creating query command: %s: %s", err, string(queryOut))
@@ -76,6 +100,7 @@ func getVideoId(uri string) (string, error) {
 
 	queryParams := parsedUrl.Query()
 
+	const videoIdQueryParam = "v"
 	videoId, ok := queryParams[videoIdQueryParam]
 	if !ok {
 		return "", ErrNoId
