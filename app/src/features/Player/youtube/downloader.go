@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"main/src/lib/types"
 	"net/url"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 )
 
 var (
@@ -46,13 +46,13 @@ func Query(query string) (*QueryData, error) {
 	return &queryData, nil
 }
 
-func Download(query string, maxLength types.Second, destDir string) (*QueryData, error) {
+func Download(query string, maxLength time.Duration, destDir string) (*QueryData, error) {
 	_, currentFile, _, _ := runtime.Caller(0)
 	currentDir := filepath.Dir(currentFile)
 
 	script := filepath.Join(currentDir, "download.py")
 
-	run := exec.Command("python", script, "-query", query, "-max_duration", fmt.Sprintf("%d", maxLength))
+	run := exec.Command("python", script, "-query", query, "-max_duration", fmt.Sprintf("%d", int(maxLength.Seconds())))
 	run.Dir = destDir
 	queryOut, err := run.CombinedOutput()
 	if err != nil {

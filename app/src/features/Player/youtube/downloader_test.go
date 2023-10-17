@@ -4,6 +4,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+	"time"
 )
 
 func Test_getVideoId(t *testing.T) {
@@ -58,7 +59,7 @@ func Test_getVideoId(t *testing.T) {
 func TestDownloader_Download_TooLong(t *testing.T) {
 	const testQuery = "https://www.youtube.com/watch?v=EIyixC9NsLI"
 
-	queryResult, err := Download(testQuery, Second(1), os.TempDir())
+	queryResult, err := Download(testQuery, time.Second, os.TempDir())
 	assert.Nil(t, err)
 	assert.NotNil(t, queryResult)
 	assert.Equal(t, "EIyixC9NsLI", queryResult.VideoInfo.Filename)
@@ -68,7 +69,7 @@ func TestDownloader_Download_TooLong(t *testing.T) {
 func TestDownloader_Download_Ok(t *testing.T) {
 	const testQuery = "https://www.youtube.com/watch?v=EIyixC9NsLI"
 
-	queryResult, err := Download(testQuery, Second(600), os.TempDir())
+	queryResult, err := Download(testQuery, time.Second*600, os.TempDir())
 	assert.Nil(t, err)
 	assert.NotNil(t, queryResult)
 	assert.Equal(t, "EIyixC9NsLI", queryResult.VideoInfo.Filename)
