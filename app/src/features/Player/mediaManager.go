@@ -6,7 +6,6 @@ import (
 	"main/src/features/Player/youtube"
 	"main/src/lib/tempfiles"
 	"path"
-	"path/filepath"
 	"time"
 )
 
@@ -14,7 +13,6 @@ const logPrefix = "[MediaManager] "
 
 type MediaManager struct {
 	directory      string
-	maxFiles       int
 	maxVideoLength time.Duration
 
 	fileManager *tempfiles.TempFileManager
@@ -22,8 +20,11 @@ type MediaManager struct {
 
 func NewMediaManager(directory string, maxFileCount int, maxVideoLength time.Duration) *MediaManager {
 	m := new(MediaManager)
+	m.directory = directory
+	m.maxVideoLength = maxVideoLength
+
 	m.fileManager = tempfiles.NewTempFileManager(
-		filepath.Dir("./resources"),
+		m.directory,
 		maxFileCount,
 		maxFileCount/10,
 		5*time.Minute,
