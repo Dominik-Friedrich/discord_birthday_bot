@@ -80,6 +80,8 @@ func (tfm *TempFileManager) Close() error {
 //
 // If the file does not exist an ErrFileNotFound is returned.
 func (tfm *TempFileManager) AddFile(fileName string) error {
+	log.Printf(log.DEBUG, logPrefix+" added file: %s", fileName)
+
 	tfm.filesMutex.Lock()
 	defer tfm.filesMutex.Unlock()
 
@@ -127,6 +129,8 @@ func (tfm *TempFileManager) getFilePath(fileName string) string {
 //
 // It assumes the calling function has already acquired the filesMutex
 func (tfm *TempFileManager) cleanOldestFiles(n int) {
+	log.Printf(log.DEBUG, logPrefix+" trying to delete %d oldest files", n)
+
 	var files []struct {
 		fileName     string
 		lastAccessed time.Time
@@ -146,6 +150,7 @@ func (tfm *TempFileManager) cleanOldestFiles(n int) {
 
 	oldestEntries := files[:n]
 
+	deletedCount := 0
 	for _, entry := range oldestEntries {
 		file := filepath.Join(tfm.directory, entry.fileName)
 		err := os.Remove(file)
@@ -153,7 +158,10 @@ func (tfm *TempFileManager) cleanOldestFiles(n int) {
 			log.Printf(log.WARN, logPrefix+" error deleting file '%s': %s", file, err)
 		}
 		delete(tfm.files, entry.fileName)
+		deletedCount++
 	}
+
+	log.Printf(log.DEBUG, logPrefix+" deleted %s files", deletedCount)
 }
 
 func (tfm *TempFileManager) asyncFileCleanupRoutine() {
@@ -169,6 +177,7 @@ func (tfm *TempFileManager) asyncFileCleanupRoutine() {
 }
 
 func (tfm *TempFileManager) fileCleanup() {
+	log.Printf(log.DEBUG, logPrefix+" running cleanup routine")
 	tfm.filesMutex.Lock()
 
 	cutoffTime := time.Now().Add(-tfm.fileExpiration)
@@ -189,6 +198,7 @@ func (tfm *TempFileManager) fileCleanup() {
 		delete(tfm.files, fileName)
 	}
 
+	log.Printf(log.DEBUG, logPrefix+" cleaned %s files", len(filesToRemove))
 	tfm.filesMutex.Unlock()
 }
 
