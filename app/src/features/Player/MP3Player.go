@@ -147,12 +147,7 @@ func (p *player) asyncPlayerStateControlRoutine() {
 		var err error
 		select {
 		case ctx := <-p.play:
-			fileName, err := p.mediaManager.GetMediaFilePathByQuery(ctx.query)
-			if err != nil {
-				log.Printf(log.WARN, "error trying to play media: %s", err)
-			}
-
-			err = p.states.getState().Play(ctx.dcI, fileName)
+			err = p.states.getState().Play(ctx.dcI, ctx.query)
 		case <-p.togglePause:
 			err = p.states.getState().TogglePause()
 		case <-p.stop:
@@ -191,12 +186,18 @@ func (p *player) playNextMedia() {
 	p.vcMutex.Unlock()
 
 	p.states.setState(Playing)
-	p.dcPlayer.Play(discord.PlayerContext{
-		Vc:        vc,
-		MediaName: p.currentMedia,
-	})
 
-	log.Println(log.INFO, "playing next media: ", p.currentMedia)
+	go func(query string) {
+		fileName, err := p.mediaManager.GetMediaFilePathByQuery(query)
+		if err != nil {
+			log.Printf(log.WARN, "error trying to play media: %s", err)
+		}
+		log.Println(log.INFO, "playing next media: ", p.currentMedia)
+		p.dcPlayer.Play(discord.PlayerContext{
+			Vc:        vc,
+			MediaName: fileName,
+		})
+	}(p.currentMedia)
 }
 
 func (p *player) initVc(i *discordgo.Interaction) error {
