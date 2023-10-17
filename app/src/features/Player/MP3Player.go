@@ -2,7 +2,6 @@ package Player
 
 import (
 	"errors"
-	"fmt"
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"github.com/gammazero/deque"
@@ -44,8 +43,8 @@ type player struct {
 
 	togglePause chan struct{}
 	play        chan struct {
-		dcI       *discordgo.Interaction
-		mediaName string
+		dcI   *discordgo.Interaction
+		query string
 	}
 	stop chan struct{}
 	idle chan struct{}
@@ -57,8 +56,8 @@ func Player() bot.Feature {
 	b.history = deque.New[string](defaultQueueSize)
 
 	b.play = make(chan struct {
-		dcI       *discordgo.Interaction
-		mediaName string
+		dcI   *discordgo.Interaction
+		query string
 	})
 	b.togglePause = make(chan struct{})
 	b.stop = make(chan struct{})
@@ -108,15 +107,10 @@ func (p *player) SupportedSites() []string {
 
 // Play pushes the media into the queue. If the player is not currently playing it sends a signal to play the next media
 func (p *player) Play(i *discordgo.Interaction, query string) error {
-	fileName, err := p.mediaManager.GetMediaFilePathByQuery(query)
-	if err != nil {
-		return fmt.Errorf("error trying to play media: %s", err)
-	}
-
 	p.play <- struct {
-		dcI       *discordgo.Interaction
-		mediaName string
-	}{dcI: i, mediaName: fileName}
+		dcI   *discordgo.Interaction
+		query string
+	}{dcI: i, query: query}
 
 	return nil
 }
@@ -153,7 +147,12 @@ func (p *player) asyncPlayerStateControlRoutine() {
 		var err error
 		select {
 		case ctx := <-p.play:
-			err = p.states.getState().Play(ctx.dcI, ctx.mediaName)
+			fileName, err := p.mediaManager.GetMediaFilePathByQuery(ctx.query)
+			if err != nil {
+				log.Printf(log.WARN, "error trying to play media: %s", err)
+			}
+
+			err = p.states.getState().Play(ctx.dcI, fileName)
 		case <-p.togglePause:
 			err = p.states.getState().TogglePause()
 		case <-p.stop:
