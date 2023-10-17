@@ -76,7 +76,7 @@ func (tfm *TempFileManager) Close() error {
 	return nil
 }
 
-// AddFile adds an existing file to the managed directory.
+// AddFile adds an existing file from the managed directory to the manager.
 //
 // If the file does not exist an ErrFileNotFound is returned.
 func (tfm *TempFileManager) AddFile(fileName string) error {
