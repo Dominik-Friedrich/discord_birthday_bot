@@ -16,6 +16,7 @@ const logPrefix = "[TempFileManager]"
 var ErrFileNotFound = errors.New("file not found")
 var ErrTooManyFiles = errors.New("too many files")
 var ErrCleanupRoutineAlreadyStarted = errors.New("cleanup routine has already been started")
+var ErrNoFileName = errors.New("fileName is required")
 
 // TempFileManager represents a thread-safe manager for temporary files in a directory.
 type TempFileManager struct {
@@ -79,7 +80,11 @@ func (tfm *TempFileManager) Close() error {
 // AddFile adds an existing file from the managed directory to the manager.
 //
 // If the file does not exist an ErrFileNotFound is returned.
+// If no fileName is given an ErrNoFileName is returned.
 func (tfm *TempFileManager) AddFile(fileName string) error {
+	if fileName == "" {
+		return ErrNoFileName
+	}
 
 	tfm.filesMutex.Lock()
 	defer tfm.filesMutex.Unlock()
@@ -106,7 +111,12 @@ func (tfm *TempFileManager) AddFile(fileName string) error {
 
 // GetFilePath returns filepath for the specified fileName.
 // If the file does not exist in the manager an ErrFileNotFound is returned.
+// If no fileName is given an ErrNoFileName is returned.
 func (tfm *TempFileManager) GetFilePath(fileName string) (string, error) {
+	if fileName == "" {
+		return "", ErrNoFileName
+	}
+
 	tfm.filesMutex.Lock()
 	defer tfm.filesMutex.Unlock()
 
