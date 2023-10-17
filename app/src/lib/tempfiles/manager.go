@@ -171,7 +171,7 @@ func (tfm *TempFileManager) cleanOldestFiles(n int) {
 		deletedCount++
 	}
 
-	log.Printf(log.DEBUG, logPrefix+" deleted %s files", deletedCount)
+	log.Printf(log.DEBUG, logPrefix+" deleted %d files", deletedCount)
 }
 
 func (tfm *TempFileManager) asyncFileCleanupRoutine() {
