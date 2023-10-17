@@ -36,7 +36,7 @@ def main():
     try:
         ydl_opts = {
             'format': 'bestaudio/best',
-            'outtmpl': '%(id)s',
+            'outtmpl': '%(id)s.opus',
             'default_search': 'ytsearch',
             'noplaylist': True,
             'logger': logger
@@ -50,6 +50,7 @@ def main():
                 video_info = search_results['entries'][0]
                 video_info['filename'] = ydl.prepare_filename(video_info)
 
+        ydl_opts['outtmpl'] = '%(id)s'
         ydl_opts['match_filter'] = duration_filter(max_duration)
         ydl_opts['postprocessors'] = [{  # Extract audio using ffmpeg
             'key': 'FFmpegExtractAudio',

@@ -5,7 +5,7 @@ import yt_dlp
 
 # Initialize the yt-dlp downloader
 ydl_opts = {
-    'outtmpl': '%(id)s',
+    'outtmpl': '%(id)s.opus',
     'quiet': True
 }
 

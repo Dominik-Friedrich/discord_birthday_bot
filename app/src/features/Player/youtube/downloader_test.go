@@ -62,7 +62,7 @@ func TestDownloader_Download_TooLong(t *testing.T) {
 	queryResult, err := Download(testQuery, time.Second, os.TempDir())
 	assert.Nil(t, err)
 	assert.NotNil(t, queryResult)
-	assert.Equal(t, "EIyixC9NsLI", queryResult.VideoInfo.Filename)
+	assert.Equal(t, "EIyixC9NsLI.opus", queryResult.VideoInfo.Filename)
 	assert.Equal(t, "The video is too long", queryResult.Error)
 }
 
@@ -72,7 +72,7 @@ func TestDownloader_Download_Ok(t *testing.T) {
 	queryResult, err := Download(testQuery, time.Second*600, os.TempDir())
 	assert.Nil(t, err)
 	assert.NotNil(t, queryResult)
-	assert.Equal(t, "EIyixC9NsLI", queryResult.VideoInfo.Filename)
+	assert.Equal(t, "EIyixC9NsLI.opus", queryResult.VideoInfo.Filename)
 
 	assert.Equal(t, "", queryResult.Error)
 }
@@ -83,5 +83,5 @@ func TestDownloader_Query(t *testing.T) {
 	queryResult, err := Query(testQuery)
 	assert.Nil(t, err)
 	assert.NotNil(t, queryResult)
-	assert.Equal(t, "EIyixC9NsLI", queryResult.VideoInfo.Filename)
+	assert.Equal(t, "EIyixC9NsLI.opus", queryResult.VideoInfo.Filename)
 }
