@@ -6,34 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"main/src/lib/types"
 	"net/url"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 )
 
-type Second int
-
 var (
 	ErrNoId                = errors.New("url has no video id query parameters")
 	ErrMalformedQueryParam = errors.New("url has multiple video ids in query parameters")
-	ErrVideoTooLong        = errors.New("result video is too long")
 )
-
-//func (d *Downloader) GetAudio(url string) (interface{}, error) {
-//	videoId, err := getVideoId(url)
-//	if err != nil {
-//		return nil, fmt.Errorf("could not extract videoId, url=%s, err: %s", url, err)
-//	}
-//
-//	video, err := youtube.Get(videoId)
-//	video = video
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	return nil, nil
-//}
 
 func Query(query string) (*QueryData, error) {
 	_, currentFile, _, _ := runtime.Caller(0)
@@ -63,7 +46,7 @@ func Query(query string) (*QueryData, error) {
 	return &queryData, nil
 }
 
-func Download(query string, maxLength Second, destDir string) (*QueryData, error) {
+func Download(query string, maxLength types.Second, destDir string) (*QueryData, error) {
 	_, currentFile, _, _ := runtime.Caller(0)
 	currentDir := filepath.Dir(currentFile)
 
