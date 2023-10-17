@@ -1,6 +1,7 @@
 package Player
 
 import (
+	"errors"
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"main/src/bot"
@@ -8,7 +9,7 @@ import (
 
 const (
 	play  = "play"
-	param = "url"
+	param = "query"
 )
 
 type playCommand struct {
@@ -32,13 +33,13 @@ func (p playCommand) Command() *discordgo.ApplicationCommand {
 
 	return &discordgo.ApplicationCommand{
 		Name:                     play,
-		Description:              "Play something",
+		Description:              "Play a song either from a URL or search.",
 		DefaultMemberPermissions: &neededPermissions,
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        param,
-				Description: "URL to play audio from. Also supports search queries",
+				Description: "The query to search for.",
 				Required:    true,
 			},
 		},
@@ -65,7 +66,23 @@ func (p playCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 }
 
 func (p playCommand) playAudio(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	err := p.player.Play(i.Interaction, "./resources/UldebI-QTFk.opus")
+	// Access options in the order provided by the user.
+	options := i.ApplicationCommandData().Options
+
+	// Or convert the slice into a map
+	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+	for _, opt := range options {
+		optionMap[opt.Name] = opt
+	}
+
+	var mediaName string
+	if opt, ok := optionMap[param]; ok {
+		mediaName = opt.StringValue()
+	} else {
+		return errors.New("query is a required field")
+	}
+
+	err := p.player.Play(i.Interaction, mediaName)
 	return err
 }
 
