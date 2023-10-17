@@ -164,14 +164,14 @@ func (p *AudioPlayer) SendPCM(v *discordgo.VoiceConnection, pcm <-chan []int16) 
 		// read pcm from chan, exit if channel is closed.
 		recv, ok := <-pcm
 		if !ok {
-			dgvoice.OnError("PCM Channel closed", nil)
+			dgvoice.OnError("PCM Channel closed\n", nil)
 			return
 		}
 
 		// try encoding pcm frame with Opus
 		opus, err := p.opusEncoder.Encode(recv, frameSize, maxBytes)
 		if err != nil {
-			dgvoice.OnError("Encoding Error", err)
+			dgvoice.OnError("Encoding Error\n", err)
 			return
 		}
 

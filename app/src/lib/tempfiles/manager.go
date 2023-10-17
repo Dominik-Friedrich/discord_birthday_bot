@@ -208,7 +208,7 @@ func (tfm *TempFileManager) fileCleanup() {
 		delete(tfm.files, fileName)
 	}
 
-	log.Printf(log.DEBUG, logPrefix+" cleaned %s files", len(filesToRemove))
+	log.Printf(log.DEBUG, logPrefix+" cleaned %d files", len(filesToRemove))
 	tfm.filesMutex.Unlock()
 }
 
