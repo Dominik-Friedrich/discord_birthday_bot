@@ -57,6 +57,9 @@ func (m *MediaManager) GetMediaFilePathByQuery(query string) (string, error) {
 	log.Printf(log.INFO, logPrefix+"could not get media: %s", err)
 	log.Printf(log.INFO, logPrefix+"attempting to download it")
 	fileName, err := m.downloadMedia(query)
+	if err != nil {
+		return "", err
+	}
 	log.Printf(log.INFO, logPrefix+"media downloaded to %s", path.Join(m.directory, fileName))
 
 	err = m.fileManager.AddFile(fileName)
@@ -64,7 +67,7 @@ func (m *MediaManager) GetMediaFilePathByQuery(query string) (string, error) {
 		return "", fmt.Errorf("could not add media to manager: %s", err)
 	}
 
-	return fileName, nil
+	return m.GetMediaFilePathByFileName(mediaInfo.VideoInfo.Filename)
 }
 
 func (m *MediaManager) GetMediaFilePathByFileName(fileName string) (string, error) {
