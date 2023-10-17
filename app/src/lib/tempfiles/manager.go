@@ -80,7 +80,6 @@ func (tfm *TempFileManager) Close() error {
 //
 // If the file does not exist an ErrFileNotFound is returned.
 func (tfm *TempFileManager) AddFile(fileName string) error {
-	log.Printf(log.DEBUG, logPrefix+" added file: %s", fileName)
 
 	tfm.filesMutex.Lock()
 	defer tfm.filesMutex.Unlock()
@@ -100,6 +99,7 @@ func (tfm *TempFileManager) AddFile(fileName string) error {
 	}
 
 	tfm.files[fileName] = time.Now()
+	log.Printf(log.DEBUG, logPrefix+" added file: %s", fileName)
 
 	return nil
 }
