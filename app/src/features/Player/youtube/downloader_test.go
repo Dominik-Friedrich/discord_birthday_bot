@@ -74,8 +74,7 @@ func TestDownloader_Download_Ok(t *testing.T) {
 	assert.NotNil(t, queryResult)
 	assert.Equal(t, "EIyixC9NsLI", queryResult.VideoInfo.Filename)
 
-	var nilString *string
-	assert.Equal(t, nilString, queryResult.Error)
+	assert.Equal(t, "", queryResult.Error)
 }
 
 func TestDownloader_Query(t *testing.T) {
