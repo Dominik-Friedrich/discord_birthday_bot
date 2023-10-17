@@ -2,18 +2,23 @@ package Player
 
 import (
 	"errors"
+	"fmt"
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"github.com/gammazero/deque"
 	"main/src/bot"
 	"main/src/features/Player/discord"
 	"sync"
+	"time"
 )
 
 const (
 	featureMP3Player = "featureMP3Player"
 
-	defaultQueueSize = 32
+	defaultQueueSize        = 32
+	defaultDirectory        = "./resources"
+	defaultMaxMediaFiles    = 100
+	defaultMaxMediaDuration = 10 * time.Minute
 )
 
 // todo: compatibility for multiple guilds
@@ -27,7 +32,10 @@ type player struct {
 	dcPlayer       *discord.AudioPlayer
 	dcPlayDoneChan chan discord.PlayerContext
 
-	states       *StateMachine
+	states *StateMachine
+
+	mediaManager *MediaManager
+
 	currentMedia string
 	queue        *deque.Deque[string]
 	queueMutex   sync.Mutex
@@ -65,6 +73,8 @@ func Player() bot.Feature {
 
 	b.states = NewStateMachine(b)
 
+	b.mediaManager = NewMediaManager(defaultDirectory, defaultMaxMediaFiles, defaultMaxMediaDuration)
+
 	go b.asyncPlayerStateControlRoutine()
 
 	return b
@@ -97,11 +107,16 @@ func (p *player) SupportedSites() []string {
 }
 
 // Play pushes the media into the queue. If the player is not currently playing it sends a signal to play the next media
-func (p *player) Play(i *discordgo.Interaction, mediaName string) error {
+func (p *player) Play(i *discordgo.Interaction, query string) error {
+	fileName, err := p.mediaManager.GetMediaFilePathByQuery(query)
+	if err != nil {
+		return fmt.Errorf("error trying to play media: %s", err)
+	}
+
 	p.play <- struct {
 		dcI       *discordgo.Interaction
 		mediaName string
-	}{dcI: i, mediaName: mediaName}
+	}{dcI: i, mediaName: fileName}
 
 	return nil
 }

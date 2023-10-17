@@ -75,14 +75,14 @@ func (p playCommand) playAudio(s *discordgo.Session, i *discordgo.InteractionCre
 		optionMap[opt.Name] = opt
 	}
 
-	var mediaName string
+	var query string
 	if opt, ok := optionMap[param]; ok {
-		mediaName = opt.StringValue()
+		query = opt.StringValue()
 	} else {
 		return errors.New("query is a required field")
 	}
 
-	err := p.player.Play(i.Interaction, mediaName)
+	err := p.player.Play(i.Interaction, query)
 	return err
 }
 
