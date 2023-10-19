@@ -10,15 +10,22 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 )
 
 var (
 	ErrNoId                = errors.New("url has no video id query parameters")
 	ErrMalformedQueryParam = errors.New("url has multiple video ids in query parameters")
+	ErrNotYoutubeUrl       = errors.New("url is not a youtube url")
 )
 
 func Query(query string) (*QueryData, error) {
+	id, err := getVideoId(query)
+	if err == nil {
+		query = id
+	}
+
 	_, currentFile, _, _ := runtime.Caller(0)
 	currentDir := filepath.Dir(currentFile)
 
@@ -47,6 +54,11 @@ func Query(query string) (*QueryData, error) {
 }
 
 func Download(query string, maxLength time.Duration, destDir string) (*QueryData, error) {
+	id, err := getVideoId(query)
+	if err == nil {
+		query = id
+	}
+
 	_, currentFile, _, _ := runtime.Caller(0)
 	currentDir := filepath.Dir(currentFile)
 
@@ -81,6 +93,14 @@ func getVideoId(uri string) (string, error) {
 		return "", err
 	}
 
+	if !strings.Contains(parsedUrl.Host, "youtube") {
+		return "", ErrNotYoutubeUrl
+	}
+
+	if strings.Contains(parsedUrl.Path, "shorts") {
+		return getVideoIdShortsUrl(parsedUrl)
+	}
+
 	queryParams := parsedUrl.Query()
 
 	const videoIdQueryParam = "v"
@@ -94,4 +114,16 @@ func getVideoId(uri string) (string, error) {
 	}
 
 	return videoId[0], nil
+}
+
+func getVideoIdShortsUrl(shortsUri *url.URL) (string, error) {
+	path := shortsUri.Path
+
+	pathElems := strings.Split(path, "/")
+
+	if len(pathElems) != 3 {
+		return "", ErrNoId
+	}
+
+	return pathElems[2], nil
 }

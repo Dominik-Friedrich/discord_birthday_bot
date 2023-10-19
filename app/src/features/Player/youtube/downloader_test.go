@@ -41,6 +41,22 @@ func Test_getVideoId(t *testing.T) {
 			want:    "",
 			wantErr: true,
 		},
+		{
+			name: "Shorts Url",
+			args: args{
+				uri: "https://www.youtube.com/shorts/Pjj_tBNh0-I",
+			},
+			want:    "Pjj_tBNh0-I",
+			wantErr: false,
+		},
+		{
+			name: "Shorts Url with Query params",
+			args: args{
+				uri: "https://www.youtube.com/shorts/Pjj_tBNh0-I?si=3123123",
+			},
+			want:    "Pjj_tBNh0-I",
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -73,7 +89,26 @@ func TestDownloader_Download_Ok(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, queryResult)
 	assert.Equal(t, "EIyixC9NsLI.opus", queryResult.VideoInfo.Filename)
+	assert.Equal(t, "", queryResult.Error)
+}
 
+func TestDownloader_Download_ComplexUrl(t *testing.T) {
+	const testQuery = "https://www.youtube.com/watch?v=7R4Aea6M-5Y&pp=ygUabGVnbyBzdGFyIHdhcnMgZGVhdGggc291bmQ%3D"
+
+	queryResult, err := Download(testQuery, time.Second*600, os.TempDir())
+	assert.Nil(t, err)
+	assert.NotNil(t, queryResult)
+	assert.Equal(t, "7R4Aea6M-5Y.opus", queryResult.VideoInfo.Filename)
+	assert.Equal(t, "", queryResult.Error)
+}
+
+func TestDownloader_Download_ShortsUrl(t *testing.T) {
+	const testQuery = "https://youtube.com/shorts/SDbm2E2o0-g?si=exLrOSlj90489xYW"
+
+	queryResult, err := Download(testQuery, time.Second*600, os.TempDir())
+	assert.Nil(t, err)
+	assert.NotNil(t, queryResult)
+	assert.Equal(t, "SDbm2E2o0-g.opus", queryResult.VideoInfo.Filename)
 	assert.Equal(t, "", queryResult.Error)
 }
 
