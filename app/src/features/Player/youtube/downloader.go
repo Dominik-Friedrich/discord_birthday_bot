@@ -31,7 +31,7 @@ func Query(query string) (*QueryData, error) {
 
 	script := filepath.Join(currentDir, "query.py")
 
-	run := exec.Command("python", script, "-query", query)
+	run := exec.Command("python3", script, "-query", query)
 	queryOut, err := run.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("error creating query command: %s: %s", err, string(queryOut))
@@ -64,7 +64,7 @@ func Download(query string, maxLength time.Duration, destDir string) (*QueryData
 
 	script := filepath.Join(currentDir, "download.py")
 
-	run := exec.Command("python", script, "-query", query, "-max_duration", fmt.Sprintf("%d", int(maxLength.Seconds())))
+	run := exec.Command("python3", script, "-query", query, "-max_duration", fmt.Sprintf("%d", int(maxLength.Seconds())))
 	run.Dir = destDir
 	queryOut, err := run.CombinedOutput()
 	if err != nil {
