@@ -7,7 +7,6 @@ import (
 
 type StateMachine struct {
 	currentState State
-	//stateMutex   sync.RWMutex
 
 	stateStopped State
 	statePaused  State
@@ -28,14 +27,11 @@ func NewStateMachine(p *player) *StateMachine {
 }
 
 func (p *StateMachine) getState() State {
-	//p.stateMutex.RLock()
 	state := p.currentState
-	//p.stateMutex.RUnlock()
 	return state
 }
 
 func (p *StateMachine) setState(newStateName StateName) {
-	//p.stateMutex.Lock()
 
 	if p.currentState.State() == newStateName {
 		return
@@ -47,8 +43,6 @@ func (p *StateMachine) setState(newStateName StateName) {
 
 	p.currentState = p.fromName(newStateName)
 	p.currentState.OnEntry(oldState)
-
-	//p.stateMutex.Unlock()
 }
 
 func (p *StateMachine) fromName(stateName StateName) State {
