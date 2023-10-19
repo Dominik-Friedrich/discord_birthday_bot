@@ -8,17 +8,18 @@ import (
 )
 
 const (
-	play  = "play"
 	param = "query"
 )
 
 type playCommand struct {
+	name   string
 	player IPlayer
 }
 
 func Play(player IPlayer) bot.Command {
 	cmd := new(playCommand)
 	cmd.player = player
+	cmd.name = "play"
 
 	return cmd
 }
@@ -32,7 +33,7 @@ func (p playCommand) Command() *discordgo.ApplicationCommand {
 	)
 
 	return &discordgo.ApplicationCommand{
-		Name:                     play,
+		Name:                     p.name,
 		Description:              "Play a song either from a URL or search.",
 		DefaultMemberPermissions: &neededPermissions,
 		Options: []*discordgo.ApplicationCommandOption{
@@ -87,5 +88,5 @@ func (p playCommand) playAudio(s *discordgo.Session, i *discordgo.InteractionCre
 }
 
 func (p playCommand) Name() string {
-	return play
+	return p.name
 }

@@ -6,17 +6,15 @@ import (
 	"main/src/bot"
 )
 
-const (
-	stop = "stop"
-)
-
 type stopCommand struct {
+	name   string
 	player IPlayer
 }
 
 func Stop(player IPlayer) bot.Command {
 	cmd := new(stopCommand)
 	cmd.player = player
+	cmd.name = "stop"
 
 	return cmd
 }
@@ -30,7 +28,7 @@ func (p stopCommand) Command() *discordgo.ApplicationCommand {
 	)
 
 	return &discordgo.ApplicationCommand{
-		Name:                     stop,
+		Name:                     p.name,
 		Description:              "Stop the player",
 		DefaultMemberPermissions: &neededPermissions,
 	}
@@ -55,5 +53,5 @@ func (p stopCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate
 }
 
 func (p stopCommand) Name() string {
-	return stop
+	return p.name
 }
