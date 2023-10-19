@@ -6,6 +6,7 @@ import (
 	"main/src/features/Player/youtube"
 	"main/src/lib/tempfiles"
 	"path"
+	"sync"
 	"time"
 )
 
@@ -16,6 +17,8 @@ type MediaManager struct {
 	maxVideoLength time.Duration
 
 	fileManager *tempfiles.TempFileManager
+
+	mutex sync.Mutex
 }
 
 func NewMediaManager(directory string, maxFileCount int, maxVideoLength time.Duration) *MediaManager {
@@ -39,6 +42,9 @@ func NewMediaManager(directory string, maxFileCount int, maxVideoLength time.Dur
 }
 
 func (m *MediaManager) GetMediaFilePathByQuery(query string) (string, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
 	// query youtube to get video id
 	mediaInfo, err := youtube.Query(query)
 	if err != nil {
@@ -48,7 +54,7 @@ func (m *MediaManager) GetMediaFilePathByQuery(query string) (string, error) {
 		return "", fmt.Errorf("error getting media info: %s", mediaInfo.Error)
 	}
 
-	filePath, err := m.GetMediaFilePathByFileName(mediaInfo.VideoInfo.Filename)
+	filePath, err := m.getMediaFilePathByFileName(mediaInfo.VideoInfo.Filename)
 	if err == nil {
 		return filePath, nil
 	}
@@ -67,10 +73,10 @@ func (m *MediaManager) GetMediaFilePathByQuery(query string) (string, error) {
 		return "", fmt.Errorf("could not add media to manager: %s", err)
 	}
 
-	return m.GetMediaFilePathByFileName(fileName)
+	return m.getMediaFilePathByFileName(fileName)
 }
 
-func (m *MediaManager) GetMediaFilePathByFileName(fileName string) (string, error) {
+func (m *MediaManager) getMediaFilePathByFileName(fileName string) (string, error) {
 	return m.fileManager.GetFilePath(fileName)
 }
 
