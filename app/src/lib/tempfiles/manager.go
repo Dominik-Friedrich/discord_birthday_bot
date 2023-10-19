@@ -49,7 +49,7 @@ func NewTempFileManager(
 	fileExpiration time.Duration,
 
 ) *TempFileManager {
-	return &TempFileManager{
+	m := &TempFileManager{
 		directory:         directory,
 		maxFileCount:      maxFileCount,
 		forceCleanupCount: forceCleanupCount,
@@ -58,6 +58,10 @@ func NewTempFileManager(
 		cleanupCycle:      cleanupCycle,
 		fileExpiration:    fileExpiration,
 	}
+
+	m.loadInitialFiles()
+
+	return m
 }
 
 // Start starts the cleanup routine. Return an ErrCleanupRoutineAlreadyStarted if Start has been called already.
@@ -213,6 +217,32 @@ func (tfm *TempFileManager) fileCleanup() {
 
 	log.Printf(log.DEBUG, logPrefix+" cleaned %d files", cleaned)
 	tfm.filesMutex.Unlock()
+}
+
+// loadInitialFiles loads all the files in the directory.
+//
+// Ignores subdirectories and any file inside of them
+func (tfm *TempFileManager) loadInitialFiles() {
+	log.Printf(log.DEBUG, logPrefix+" loading initial files...")
+
+	dir, err := os.ReadDir(tfm.directory)
+	if err != nil {
+		log.Printf(log.WARN, logPrefix+" could not load initial files: ", err)
+	}
+
+	for _, file := range dir {
+		if file.IsDir() {
+			continue
+		}
+
+		err := tfm.AddFile(file.Name())
+		if err != nil {
+			log.Printf(log.WARN, logPrefix+" could not load initial file: ", err)
+			continue
+		}
+	}
+
+	log.Printf(log.DEBUG, logPrefix+" loaded %d initial files", len(tfm.files))
 }
 
 func fileExists(filename string) bool {
