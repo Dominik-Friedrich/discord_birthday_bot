@@ -52,9 +52,13 @@ func (s statePlaying) TogglePause() error {
 	return nil
 }
 
-func (s statePlaying) Forward() error {
-	//TODO implement me
-	return errors.New("unimplemented feature")
+func (s statePlaying) Forward(forwardCount uint) error {
+	const currentlyPlayingOffset = 1
+	s.player.RemoveQueueFront(forwardCount - currentlyPlayingOffset)
+	s.player.dcPlayer.Stop()
+	s.player.states.setState(Idle)
+
+	return nil
 }
 
 func (s statePlaying) Backward() error {

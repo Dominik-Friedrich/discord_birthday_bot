@@ -1,7 +1,6 @@
 package Player
 
 import (
-	"errors"
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
 )
@@ -61,14 +60,12 @@ func (s stateStopped) TogglePause() error {
 	return nil // todo error for discord reply?
 }
 
-func (s stateStopped) Forward() error {
-	//TODO implement me
-	return errors.New("unimplemented feature")
+func (s stateStopped) Forward(forwardCount uint) error {
+	return nil // todo error for discord reply?
 }
 
 func (s stateStopped) Backward() error {
-	//TODO implement me
-	return errors.New("unimplemented feature")
+	return nil // todo error for discord reply?
 }
 
 func (s stateStopped) Playing() bool {

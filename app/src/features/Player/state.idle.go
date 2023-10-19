@@ -40,9 +40,11 @@ func (s stateIdle) TogglePause() error {
 	return nil
 }
 
-func (s stateIdle) Forward() error {
-	//TODO implement me
-	return errors.New("unimplemented feature")
+func (s stateIdle) Forward(forwardCount uint) error {
+	s.player.RemoveQueueFront(forwardCount - 1)
+	s.player.playNextMedia()
+
+	return nil
 }
 
 func (s stateIdle) Backward() error {
