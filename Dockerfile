@@ -6,6 +6,7 @@ RUN apt-get update && apt-get -y install python3 python3-setuptools python3-pip
 # Create the working directory
 RUN mkdir -p /app
 WORKDIR /app
+RUN mkdir -p ./resources
 
 # pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change
 COPY ./app/go.mod ./app/go.sum ./
