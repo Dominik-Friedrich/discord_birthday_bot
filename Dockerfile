@@ -14,6 +14,8 @@ RUN go mod download && go mod verify
 
 COPY ./app .
 
+RUN python3 -m venv .venv
+RUN source .venv/bin/activate
 RUN pip install -r ./requirements.txt
 
 RUN go build -v -o app
