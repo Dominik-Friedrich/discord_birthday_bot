@@ -3,7 +3,6 @@ module main
 go 1.20
 
 require (
-	github.com/Kunal-Diwan/go-get-youtube v0.0.0-20210926052534-24a922d2894d
 	github.com/bwmarrin/dgvoice v0.0.0-20210225172318-caaac756e02e
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/chris-dot-exe/AwesomeLog v1.0.3
