@@ -132,7 +132,11 @@ func (p *AudioPlayer) playAudioFile(v *discordgo.VoiceConnection, filename strin
 		case <-p.stop:
 			return Stopped
 		case <-p.pause:
-			<-p.unpause
+			select {
+			case <-p.stop:
+				return Stopped
+			case <-p.unpause:
+			}
 
 		default:
 			// read data from ffmpeg stdout
