@@ -67,7 +67,7 @@ func (m *MediaManager) GetMediaFilePathByQuery(query string) (string, error) {
 		return "", fmt.Errorf("could not add media to manager: %s", err)
 	}
 
-	return m.GetMediaFilePathByFileName(mediaInfo.VideoInfo.Filename)
+	return m.GetMediaFilePathByFileName(fileName)
 }
 
 func (m *MediaManager) GetMediaFilePathByFileName(fileName string) (string, error) {
