@@ -47,7 +47,7 @@ func Query(query string) (*QueryData, error) {
 	var queryData QueryData
 	err = json.Unmarshal(jsonQueryData, &queryData)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling query command output: %s", err)
+		return nil, fmt.Errorf("error unmarshalling query command output: %s: %s", err, jsonQueryData)
 	}
 
 	return &queryData, nil
@@ -81,7 +81,7 @@ func Download(query string, maxLength time.Duration, destDir string) (*QueryData
 	var queryData QueryData
 	err = json.Unmarshal(jsonQueryData, &queryData)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling query command output: %s", err)
+		return nil, fmt.Errorf("error unmarshalling query command output: %s: %s", err, jsonQueryData)
 	}
 
 	return &queryData, nil
