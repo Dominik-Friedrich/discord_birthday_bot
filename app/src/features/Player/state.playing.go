@@ -33,7 +33,7 @@ func (s statePlaying) Play(i *discordgo.Interaction, mediaName string) error {
 		return err
 	}
 
-	err = s.player.AddQueueFront(mediaName)
+	err = s.player.AddQueueBack(mediaName)
 	if err != nil {
 		return err
 	}
