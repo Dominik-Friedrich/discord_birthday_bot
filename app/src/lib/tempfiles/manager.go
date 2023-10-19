@@ -199,16 +199,19 @@ func (tfm *TempFileManager) fileCleanup() {
 		}
 	}
 
+	cleaned := 0
 	for _, fileName := range filesToRemove {
 		file := filepath.Join(tfm.directory, fileName)
 		err := os.Remove(file)
 		if err != nil {
 			log.Printf(log.WARN, logPrefix+" error deleting file '%s': %s", file, err)
+			continue
 		}
 		delete(tfm.files, fileName)
+		cleaned++
 	}
 
-	log.Printf(log.DEBUG, logPrefix+" cleaned %d files", len(filesToRemove))
+	log.Printf(log.DEBUG, logPrefix+" cleaned %d files", cleaned)
 	tfm.filesMutex.Unlock()
 }
 
