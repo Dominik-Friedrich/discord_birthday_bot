@@ -2,7 +2,7 @@ package bot
 
 import (
 	"github.com/bwmarrin/discordgo"
-	"log"
+	log "github.com/chris-dot-exe/AwesomeLog"
 	"os"
 	"os/signal"
 )
@@ -66,12 +66,15 @@ func (b *DiscordBot) Run() {
 		}
 	}
 
-	log.Println("Adding commands...")
+	log.Println(log.INFO, "Adding commands...")
+	commands := make([]*discordgo.ApplicationCommand, 0, len(b.commands))
 	for name, cmd := range b.commands {
-		_, err := b.session.ApplicationCommandCreate(b.session.State.User.ID, "", cmd.Command())
-		if err != nil {
-			log.Panicf("Cannot create '%v' command: %v", name, err)
-		}
+		commands = append(commands, cmd.Command())
+		log.Println(log.INFO, "Added commands: ", name)
+	}
+	_, err = b.session.ApplicationCommandBulkOverwrite(b.session.State.User.ID, "", commands)
+	if err != nil {
+		log.Panicf("Error creating commands: %v", err)
 	}
 
 	defer func(client *Session) {
@@ -83,10 +86,10 @@ func (b *DiscordBot) Run() {
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
-	log.Println("Press Ctrl+C to exit")
+	log.Println(log.INFO, "Press Ctrl+C to exit")
 	<-stop
 
-	log.Println("Gracefully shutting down.")
+	log.Println(log.INFO, "Gracefully shutting down.")
 }
 
 func (b *DiscordBot) init() {

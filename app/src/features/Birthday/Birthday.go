@@ -8,8 +8,7 @@ import (
 	"github.com/go-co-op/gocron"
 	"main/src/bot"
 	commands2 "main/src/features/Birthday/commands"
-	"main/src/lib/database"
-	"main/src/repository/birthday"
+	"main/src/repository"
 	"time"
 )
 
@@ -37,15 +36,15 @@ var (
 
 type Birthday struct {
 	session            *bot.Session
-	birthdayRepo       birthday.Repository
-	birthdayAddedEvent chan birthday.User
+	birthdayRepo       repository.Repository
+	birthdayAddedEvent chan repository.User
 }
 
-func BirthdayRole(connection *database.Connection) bot.Feature {
+func BirthdayRole(repo repository.Repository) bot.Feature {
 	b := new(Birthday)
 
-	b.birthdayAddedEvent = make(chan birthday.User)
-	b.birthdayRepo = birthday.NewRepository(connection)
+	b.birthdayAddedEvent = make(chan repository.User)
+	b.birthdayRepo = repo
 
 	return b
 }
@@ -114,7 +113,7 @@ func (b Birthday) birthdayCheckGuilds() error {
 }
 
 func (b Birthday) asyncBirthdayCheckGuild(guildId string) {
-	birthdayUsers, err := b.birthdayRepo.GetBirthdayUsers(time.Now())
+	birthdayUsers, err := b.birthdayRepo.GetUsers(time.Now())
 	if err != nil {
 		log.Printf(log.WARN, "Guild-%s: error getting birthday users: %v \n", guildId, err.Error())
 	}

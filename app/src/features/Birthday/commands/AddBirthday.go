@@ -6,7 +6,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"main/src/bot"
-	"main/src/repository/birthday"
+	"main/src/repository"
 	"time"
 )
 
@@ -19,14 +19,12 @@ const (
 )
 
 type addBirthdayCommand struct {
-	birthdays    birthday.Repository
-	eventChannel chan birthday.User
+	birthdays repository.Repository
 }
 
-func AddBirthday(repo birthday.Repository, userAddedEvent chan birthday.User) bot.Command {
+func AddBirthday(repo repository.Repository, userAddedEvent chan repository.User) bot.Command {
 	cmd := new(addBirthdayCommand)
 	cmd.birthdays = repo
-	cmd.eventChannel = userAddedEvent
 	return cmd
 }
 
@@ -67,14 +65,10 @@ func (a *addBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.Interacti
 		log.Println(err.Error())
 		response = err.Error()
 	} else {
-		err := a.birthdays.UpsertBirthday(birthdayUser)
+		err := a.birthdays.UpsertUser(&birthdayUser)
 		if err != nil {
 			log.Println(log.WARN, err.Error())
 			response = "something went horribly wrong D:"
-		}
-		if a.eventChannel != nil {
-			log.Printf(log.INFO, "firing birthday added event")
-			a.eventChannel <- birthdayUser
 		}
 	}
 
@@ -90,7 +84,7 @@ func (a *addBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.Interacti
 	}
 }
 
-func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (birthday.User, error) {
+func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (repository.User, error) {
 	// Access options in the order provided by the user.
 	options := i.ApplicationCommandData().Options
 
@@ -101,13 +95,21 @@ func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordg
 	}
 
 	var errs error
-	var birthdayUser birthday.User
+	var birthdayUser repository.User
 
 	if option, ok := optionMap[paramUser]; ok {
 		usr := option.UserValue(s)
-		birthdayUser.UserId = usr.ID
+
+		member, err := s.GuildMember(i.GuildID, usr.ID)
+		if err != nil {
+			return repository.User{}, err
+		}
+		birthdayUser.UserId = member.User.ID
 		birthdayUser.GuildId = i.GuildID
-		birthdayUser.UserName = usr.Username
+		birthdayUser.Username = member.User.Username
+		if member.Nick != "" {
+			birthdayUser.Nickname = &member.Nick
+		}
 	} else {
 		errs = errors.Join(errors.New("you need to specify the birthday user"))
 	}

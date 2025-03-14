@@ -5,7 +5,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"main/src/bot"
-	"main/src/repository/birthday"
+	"main/src/repository"
 )
 
 const (
@@ -13,10 +13,10 @@ const (
 )
 
 type removeBirthdayCommand struct {
-	birthdays birthday.Repository
+	birthdays repository.Repository
 }
 
-func RemoveBirthday(repo birthday.Repository) bot.Command {
+func RemoveBirthday(repo repository.Repository) bot.Command {
 	cmd := new(removeBirthdayCommand)
 	cmd.birthdays = repo
 	return cmd
@@ -71,7 +71,7 @@ func (a *removeBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.Intera
 	}
 }
 
-func (a *removeBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (birthday.User, error) {
+func (a *removeBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (repository.User, error) {
 	// Access options in the order provided by the user.
 	options := i.ApplicationCommandData().Options
 
@@ -81,12 +81,12 @@ func (a *removeBirthdayCommand) validateUserInput(s *discordgo.Session, i *disco
 	}
 
 	var errs error
-	var birthdayUser birthday.User
+	var birthdayUser repository.User
 
 	if option, ok := optionMap[paramUser]; ok {
 		usr := option.UserValue(s)
 		birthdayUser.UserId = usr.ID
-		birthdayUser.UserName = usr.Username
+		birthdayUser.Username = usr.Username
 	} else {
 		errs = errors.Join(errors.New("you need to specify the birthday user"))
 	}

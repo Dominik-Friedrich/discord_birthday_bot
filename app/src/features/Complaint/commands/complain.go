@@ -5,8 +5,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"main/src/bot"
-	"main/src/repository/birthday"
-	"main/src/repository/complaint"
+	"main/src/repository"
 	"math/rand"
 	"time"
 )
@@ -15,16 +14,14 @@ const (
 	complain       = "complain"
 	paramUser      = "user"
 	paramComplaint = "complaint"
-
-	screamsInPain = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 )
 
 type complainCommand struct {
-	repo    complaint.Repository
+	repo    repository.Repository
 	replies *Cache
 }
 
-func Complain(repo complaint.Repository, replies *Cache) bot.Command {
+func Complain(repo repository.Repository, replies *Cache) bot.Command {
 	cmd := new(complainCommand)
 	cmd.repo = repo
 	cmd.replies = replies
@@ -62,7 +59,7 @@ func (a *complainCommand) Command() *discordgo.ApplicationCommand {
 func (a *complainCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	newComplaint, err := a.validateUserInput(s, i)
 
-	response := screamsInPain
+	var response string
 	if err != nil {
 		log.Println(err.Error())
 		response = err.Error()
@@ -70,7 +67,6 @@ func (a *complainCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 		err := a.repo.AddComplaint(newComplaint)
 		if err != nil {
 			log.Println(log.WARN, err.Error())
-			response = "you can't even write a complaint?"
 		}
 	}
 
@@ -88,26 +84,39 @@ func (a *complainCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	}
 }
 
-func (a *complainCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (complaint.Complaint, error) {
-	// Access options in the order provided by the user.
+func (a *complainCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (repository.Complaint, error) {
 	options := i.ApplicationCommandData().Options
+	if i.Member == nil {
+		return repository.Complaint{}, errors.New("unable to determine complainant")
+	}
 
-	// Or convert the slice into a map
 	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 	for _, opt := range options {
 		optionMap[opt.Name] = opt
 	}
 
 	var err error
-	var newComplaint complaint.Complaint
+	newComplaint := repository.Complaint{
+		Complainant: &repository.User{
+			GuildId:  i.GuildID,
+			UserId:   i.Member.User.ID,
+			Username: i.Member.User.Username,
+		},
+	}
+	if i.Member.Nick != "" {
+		newComplaint.Complainant.Nickname = &i.Member.Nick
+	}
 
 	if option, ok := optionMap[paramUser]; ok {
 		usr := option.UserValue(s)
-		newComplaint.User = &birthday.User{
+		newComplaint.AgainstUser = &repository.User{
 			GuildId:  i.GuildID,
 			UserId:   usr.ID,
-			UserName: usr.Username,
+			Username: usr.Username,
 			Birthday: time.Time{},
+		}
+		if i.Member.Nick != "" {
+			newComplaint.AgainstUser.Nickname = &i.Member.Nick
 		}
 	}
 
@@ -122,6 +131,8 @@ func (a *complainCommand) validateUserInput(s *discordgo.Session, i *discordgo.I
 }
 
 func (a *complainCommand) randomReply() string {
+	const screamsInPain = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
 	a.replies.Lock()
 	defer a.replies.Unlock()
 
@@ -133,7 +144,7 @@ func (a *complainCommand) randomReply() string {
 	}
 
 	if a.replies.Len() == 0 {
-		return ""
+		return screamsInPain
 	}
 
 	index := rand.Intn(a.replies.Len())

@@ -4,8 +4,7 @@ import (
 	log "github.com/chris-dot-exe/AwesomeLog"
 	"main/src/bot"
 	"main/src/features/Complaint/commands"
-	"main/src/lib/database"
-	"main/src/repository/complaint"
+	"main/src/repository"
 )
 
 const (
@@ -14,14 +13,14 @@ const (
 
 type ComplaintFeature struct {
 	session *bot.Session
-	repo    complaint.Repository
+	repo    repository.Repository
 	replies *commands.Cache
 }
 
-func Complaint(connection *database.Connection) bot.Feature {
+func Complaint(repo repository.Repository) bot.Feature {
 	b := new(ComplaintFeature)
 
-	b.repo = complaint.NewRepository(connection)
+	b.repo = repo
 
 	b.replies = new(commands.Cache)
 
@@ -49,6 +48,6 @@ func (b *ComplaintFeature) Name() string {
 func (b *ComplaintFeature) Commands() []bot.Command {
 	return []bot.Command{
 		commands.Complain(b.repo, b.replies),
-		//commands.AddComplaintResponse(b.repo), TODO implement command
+		commands.AddComplainReply(b.repo, b.replies),
 	}
 }
