@@ -132,6 +132,10 @@ func (a *complainCommand) randomReply() string {
 		}
 	}
 
+	if a.replies.Len() == 0 {
+		return ""
+	}
+
 	index := rand.Intn(a.replies.Len())
 
 	complaintReply, _ := a.replies.Get(index)
