@@ -42,7 +42,7 @@ func (r Repo) initDatabase() error {
 }
 
 func (r Repo) UpsertBirthday(user User) error {
-	log.Printf(log.INFO, "ADDED BIRTHDAY: %v", user)
+	log.Printf(log.INFO, "ADDED BIRTHDAY: %v\n", user)
 	return r.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "guild_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"birthday"})}).
@@ -50,13 +50,13 @@ func (r Repo) UpsertBirthday(user User) error {
 }
 
 func (r Repo) RemoveBirthday(user User) error {
-	log.Printf(log.INFO, "REMOVED BIRTHDAY: %v", user)
+	log.Printf(log.INFO, "REMOVED BIRTHDAY: %v\n", user)
 
 	return r.db.Unscoped().Where(User{GuildId: user.GuildId, UserId: user.UserId}).Delete(&User{}).Error
 }
 
 func (r Repo) GetBirthdayUsers(birthday time.Time) ([]User, error) {
-	log.Printf(log.INFO, "GET BIRTHDAYS FOR: %d/%d", birthday.Day(), birthday.Month())
+	log.Printf(log.INFO, "GET BIRTHDAYS FOR: %d/%d\n", birthday.Day(), birthday.Month())
 
 	var birthdayUsers []User
 	month := birthday.Month()
@@ -67,7 +67,7 @@ func (r Repo) GetBirthdayUsers(birthday time.Time) ([]User, error) {
 }
 
 func (r Repo) SetBirthdayRoleId(guildId, roleId string) error {
-	log.Printf(log.INFO, "SET BIRTHDAY ROLE: guildId=%s, roleId=%s", guildId, roleId)
+	log.Printf(log.INFO, "SET BIRTHDAY ROLE: guildId=%s, roleId=%s\n", guildId, roleId)
 
 	return r.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "guild_id"}},
@@ -76,7 +76,7 @@ func (r Repo) SetBirthdayRoleId(guildId, roleId string) error {
 }
 
 func (r Repo) GetBirthdayRoleId(guildId string) (string, error) {
-	log.Printf(log.INFO, "GET BIRTHDAY ROLE: guildId=%s", guildId)
+	log.Printf(log.INFO, "GET BIRTHDAY ROLE: guildId=%s\n", guildId)
 
 	var birthdayRole Role
 	err := r.db.Where(&Role{GuildId: guildId}).First(&birthdayRole).Error
