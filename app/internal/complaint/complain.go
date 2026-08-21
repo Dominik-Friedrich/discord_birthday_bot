@@ -1,43 +1,41 @@
-package commands
+package complaint
 
 import (
+	"context"
 	"errors"
+	"log/slog"
+	"math/rand/v2"
+
+	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/bot"
+	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/user"
+
 	"github.com/bwmarrin/discordgo"
-	log "github.com/chris-dot-exe/AwesomeLog"
-	"main/src/bot"
-	"main/src/repository"
-	"math/rand"
-	"time"
 )
 
 const (
-	complain       = "complain"
-	paramUser      = "user"
-	paramComplaint = "complaint"
+	complainCommandName = "complain"
+	paramUser           = "user"
+	paramComplaint      = "complaint"
 )
 
 type complainCommand struct {
-	repo    repository.Repository
-	replies *Cache
+	repo    *Repository
+	replies *cache
 }
 
-func Complain(repo repository.Repository, replies *Cache) bot.Command {
-	cmd := new(complainCommand)
-	cmd.repo = repo
-	cmd.replies = replies
-
-	return cmd
+func Complain(repo *Repository, replies *cache) bot.Command {
+	return &complainCommand{repo: repo, replies: replies}
 }
 
 func (a *complainCommand) Name() string {
-	return complain
+	return complainCommandName
 }
 
 func (a *complainCommand) Command() *discordgo.ApplicationCommand {
 	neededPermissions := int64(discordgo.PermissionSendMessages)
 
 	return &discordgo.ApplicationCommand{
-		Name:                     complain,
+		Name:                     complainCommandName,
 		Description:              "Complain about something",
 		DefaultMemberPermissions: &neededPermissions,
 		Options: []*discordgo.ApplicationCommandOption{
@@ -57,47 +55,39 @@ func (a *complainCommand) Command() *discordgo.ApplicationCommand {
 }
 
 func (a *complainCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	ctx := context.Background()
 	newComplaint, err := a.validateUserInput(s, i)
 
 	var response string
 	if err != nil {
-		log.Println(err.Error())
+		slog.Warn("invalid complain input", "error", err)
 		response = err.Error()
 	} else {
-		err := a.repo.AddComplaint(newComplaint)
-		if err != nil {
-			log.Println(log.WARN, err.Error())
+		if err := a.repo.AddComplaint(ctx, newComplaint); err != nil {
+			slog.Warn("error adding complaint", "error", err)
 		}
+		response = a.randomReply(ctx)
 	}
 
-	response = a.randomReply()
-
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		// Ignore type for now, they will be discussed in "responses"
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: response,
 		},
-	})
-	if err != nil {
-		log.Println("error responding to command prompt", err.Error())
+	}); err != nil {
+		slog.Warn("error responding to command prompt", "error", err)
 	}
 }
 
-func (a *complainCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (repository.Complaint, error) {
-	options := i.ApplicationCommandData().Options
+func (a *complainCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (Complaint, error) {
 	if i.Member == nil {
-		return repository.Complaint{}, errors.New("unable to determine complainant")
+		return Complaint{}, errors.New("unable to determine complainant")
 	}
-
-	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
-	for _, opt := range options {
-		optionMap[opt.Name] = opt
-	}
+	optionMap := bot.OptionMap(i.ApplicationCommandData().Options)
 
 	var err error
-	newComplaint := repository.Complaint{
-		Complainant: &repository.User{
+	newComplaint := Complaint{
+		Complainant: &user.User{
 			GuildId:  i.GuildID,
 			UserId:   i.Member.User.ID,
 			Username: i.Member.User.Username,
@@ -109,11 +99,10 @@ func (a *complainCommand) validateUserInput(s *discordgo.Session, i *discordgo.I
 
 	if option, ok := optionMap[paramUser]; ok {
 		usr := option.UserValue(s)
-		newComplaint.AgainstUser = &repository.User{
+		newComplaint.AgainstUser = &user.User{
 			GuildId:  i.GuildID,
 			UserId:   usr.ID,
 			Username: usr.Username,
-			Birthday: time.Time{},
 		}
 		if i.Member.Nick != "" {
 			newComplaint.AgainstUser.Nickname = &i.Member.Nick
@@ -121,8 +110,7 @@ func (a *complainCommand) validateUserInput(s *discordgo.Session, i *discordgo.I
 	}
 
 	if opt, ok := optionMap[paramComplaint]; ok {
-		complaintText := opt.StringValue()
-		newComplaint.Text = complaintText
+		newComplaint.Text = opt.StringValue()
 	} else {
 		err = errors.New("stop complaining about nothing")
 	}
@@ -130,16 +118,15 @@ func (a *complainCommand) validateUserInput(s *discordgo.Session, i *discordgo.I
 	return newComplaint, err
 }
 
-func (a *complainCommand) randomReply() string {
+func (a *complainCommand) randomReply(ctx context.Context) string {
 	const screamsInPain = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 	a.replies.Lock()
 	defer a.replies.Unlock()
 
 	if !a.replies.Valid() {
-		err := a.renewCache()
-		if err != nil {
-			log.Println(log.WARN, "could not refresh reply cache: ", err.Error())
+		if err := refreshCache(ctx, a.repo, a.replies); err != nil {
+			slog.Warn("could not refresh reply cache", "error", err)
 		}
 	}
 
@@ -147,19 +134,9 @@ func (a *complainCommand) randomReply() string {
 		return screamsInPain
 	}
 
-	index := rand.Intn(a.replies.Len())
+	index := rand.IntN(a.replies.Len())
 
 	complaintReply, _ := a.replies.Get(index)
 
 	return complaintReply.Text
-}
-
-func (a *complainCommand) renewCache() error {
-	replies, err := a.repo.GetComplaintReplies()
-
-	if err != nil {
-		a.replies.Refresh(replies)
-	}
-
-	return err
 }

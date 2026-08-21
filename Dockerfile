@@ -1,4 +1,4 @@
-FROM golang:1.24
+FROM golang:1.27
 
 RUN mkdir -p /app
 
@@ -9,6 +9,6 @@ COPY ./app/go.mod ./app/go.sum ./
 RUN go mod download && go mod verify
 
 COPY ./app .
-RUN go build -v -o app
+RUN go build -v -o app ./cmd/bot
 
 CMD ["./app"]

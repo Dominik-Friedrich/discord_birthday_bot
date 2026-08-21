@@ -1,10 +1,12 @@
 package bot
 
 import (
-	"github.com/bwmarrin/discordgo"
-	log "github.com/chris-dot-exe/AwesomeLog"
+	"context"
+	"log/slog"
 	"os"
 	"os/signal"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 type DiscordBot struct {
@@ -18,11 +20,12 @@ type Session struct {
 	*discordgo.Session
 }
 
-func NewBot(apiToken, applicationId string) *DiscordBot {
+func New(apiToken, applicationId string) *DiscordBot {
 	token := "Bot " + apiToken
 	dcClient, err := discordgo.New(token)
 	if err != nil {
-		log.Fatalf("Invalid bot parameters: %v", err)
+		slog.Error("invalid bot parameters", "error", err)
+		os.Exit(1)
 	}
 
 	b := new(DiscordBot)
@@ -53,43 +56,45 @@ func (b *DiscordBot) Session() *Session {
 	return b.session
 }
 
+// Run opens the Discord session, initializes all registered features, and
+// blocks until an interrupt signal is received.
 func (b *DiscordBot) Run() {
 	err := b.session.Open()
 	if err != nil {
-		log.Fatalf("Cannot open the session: %v", err)
+		slog.Error("cannot open the session", "error", err)
+		os.Exit(1)
 	}
-
-	for _, feature := range b.features {
-		err := feature.Init(b.session)
-		if err != nil {
-			log.Fatalf("Error registerung feature '%s': %v", feature.Name(), err)
-		}
-	}
-
-	log.Println(log.INFO, "Adding commands...")
-	commands := make([]*discordgo.ApplicationCommand, 0, len(b.commands))
-	for name, cmd := range b.commands {
-		commands = append(commands, cmd.Command())
-		log.Println(log.INFO, "Added commands: ", name)
-	}
-	_, err = b.session.ApplicationCommandBulkOverwrite(b.session.State.User.ID, "", commands)
-	if err != nil {
-		log.Panicf("Error creating commands: %v", err)
-	}
-
 	defer func(client *Session) {
-		err := client.Close()
-		if err != nil {
-			log.Fatalf("error closing the discord session")
+		if err := client.Close(); err != nil {
+			slog.Error("error closing the discord session", "error", err)
 		}
 	}(b.session)
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
-	log.Println(log.INFO, "Press Ctrl+C to exit")
-	<-stop
+	for _, feature := range b.features {
+		if err := feature.Init(b.session); err != nil {
+			slog.Error("error registering feature", "feature", feature.Name(), "error", err)
+			os.Exit(1)
+		}
+	}
 
-	log.Println(log.INFO, "Gracefully shutting down.")
+	slog.Info("adding commands")
+	commands := make([]*discordgo.ApplicationCommand, 0, len(b.commands))
+	for name, cmd := range b.commands {
+		commands = append(commands, cmd.Command())
+		slog.Debug("added command", "name", name)
+	}
+	if _, err := b.session.ApplicationCommandBulkOverwrite(b.session.State.User.ID, "", commands); err != nil {
+		slog.Error("error creating commands", "error", err)
+		panic(err)
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	slog.Info("bot is running, press Ctrl+C to exit")
+	<-ctx.Done()
+
+	slog.Info("gracefully shutting down")
 }
 
 func (b *DiscordBot) init() {

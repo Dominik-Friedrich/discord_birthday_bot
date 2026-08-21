@@ -1,17 +1,20 @@
-package commands
+package birthday
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
-	log "github.com/chris-dot-exe/AwesomeLog"
-	"main/src/bot"
-	"main/src/repository"
+	"log/slog"
 	"time"
+
+	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/bot"
+	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/user"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 const (
-	addBirthday            = "add-birthday"
+	addBirthdayCommandName = "add-birthday"
 	paramUser              = "user"
 	paramBirthday          = "birthday"
 	birthdayFormat         = "02/01"
@@ -19,28 +22,29 @@ const (
 )
 
 type addBirthdayCommand struct {
-	birthdays repository.Repository
+	users          UserRepository
+	userAddedEvent chan user.User
 }
 
-func AddBirthday(repo repository.Repository, userAddedEvent chan repository.User) bot.Command {
-	cmd := new(addBirthdayCommand)
-	cmd.birthdays = repo
-	return cmd
+func AddBirthday(users UserRepository, userAddedEvent chan user.User) bot.Command {
+	return &addBirthdayCommand{
+		users:          users,
+		userAddedEvent: userAddedEvent,
+	}
 }
 
 func (a *addBirthdayCommand) Name() string {
-	return addBirthday
+	return addBirthdayCommandName
 }
 
 func (a *addBirthdayCommand) Command() *discordgo.ApplicationCommand {
 	neededPermissions := int64(discordgo.PermissionManageRoles)
 
 	return &discordgo.ApplicationCommand{
-		Name:                     addBirthday,
+		Name:                     addBirthdayCommandName,
 		Description:              "Adds the birthday of a user",
 		DefaultMemberPermissions: &neededPermissions,
 		Options: []*discordgo.ApplicationCommandOption{
-
 			{
 				Type:        discordgo.ApplicationCommandOptionUser,
 				Name:        paramUser,
@@ -62,47 +66,39 @@ func (a *addBirthdayCommand) Handle(s *discordgo.Session, i *discordgo.Interacti
 
 	response := "successfully added the birthday!"
 	if err != nil {
-		log.Println(err.Error())
+		slog.Warn("invalid add-birthday input", "error", err)
 		response = err.Error()
 	} else {
-		err := a.birthdays.UpsertUser(&birthdayUser)
-		if err != nil {
-			log.Println(log.WARN, err.Error())
+		if err := a.users.UpsertUser(context.Background(), &birthdayUser); err != nil {
+			slog.Warn("error upserting user", "error", err)
 			response = "something went horribly wrong D:"
+		} else if a.userAddedEvent != nil {
+			a.userAddedEvent <- birthdayUser
 		}
 	}
 
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		// Ignore type for now, they will be discussed in "responses"
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: response,
 		},
-	})
-	if err != nil {
-		log.Println("error responding to command prompt", err.Error())
+	}); err != nil {
+		slog.Warn("error responding to command prompt", "error", err)
 	}
 }
 
-func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (repository.User, error) {
-	// Access options in the order provided by the user.
-	options := i.ApplicationCommandData().Options
-
-	// Or convert the slice into a map
-	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
-	for _, opt := range options {
-		optionMap[opt.Name] = opt
-	}
+func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordgo.InteractionCreate) (user.User, error) {
+	optionMap := bot.OptionMap(i.ApplicationCommandData().Options)
 
 	var errs error
-	var birthdayUser repository.User
+	var birthdayUser user.User
 
 	if option, ok := optionMap[paramUser]; ok {
 		usr := option.UserValue(s)
 
 		member, err := s.GuildMember(i.GuildID, usr.ID)
 		if err != nil {
-			return repository.User{}, err
+			return user.User{}, err
 		}
 		birthdayUser.UserId = member.User.ID
 		birthdayUser.GuildId = i.GuildID
@@ -111,20 +107,18 @@ func (a *addBirthdayCommand) validateUserInput(s *discordgo.Session, i *discordg
 			birthdayUser.Nickname = &member.Nick
 		}
 	} else {
-		errs = errors.Join(errors.New("you need to specify the birthday user"))
+		errs = errors.Join(errs, errors.New("you need to specify the birthday user"))
 	}
 
 	if opt, ok := optionMap[paramBirthday]; ok {
 		birthdayString := opt.StringValue()
 		birthdayDate, err := time.Parse(birthdayFormat, birthdayString)
 		if err != nil {
-			log.PrettyPrint(log.INFO, birthdayString)
-			errs = errors.Join(fmt.Errorf("the birthday has to be in the format '%s'", birthdayFormatReadable))
-
+			errs = errors.Join(errs, fmt.Errorf("the birthday has to be in the format '%s'", birthdayFormatReadable))
 		}
 		birthdayUser.Birthday = birthdayDate
 	} else {
-		errs = errors.Join(fmt.Errorf("you need to specify the birthday date. Format '%s'", birthdayFormatReadable))
+		errs = errors.Join(errs, fmt.Errorf("you need to specify the birthday date. Format '%s'", birthdayFormatReadable))
 	}
 
 	return birthdayUser, errs
