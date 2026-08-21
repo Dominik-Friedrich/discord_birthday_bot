@@ -19,6 +19,9 @@ func (s stateStopped) State() StateName {
 // OnEntry disconnects and closes the voice channel if one is open, and stops
 // any currently playing media.
 func (s stateStopped) OnEntry(_ State) {
+	// A skip that was in flight when /stop landed shouldn't cause a track
+	// to start once this Stop() is confirmed.
+	s.player.pendingAdvance = false
 	s.player.dcPlayer.Stop()
 
 	s.player.vcMutex.Lock()

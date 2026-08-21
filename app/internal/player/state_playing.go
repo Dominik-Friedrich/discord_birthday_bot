@@ -42,8 +42,8 @@ func (s statePlaying) TogglePause() error {
 	return nil
 }
 
-// Forward drops the skipped tracks and jumps to whatever's next (or Idle)
-// without waiting for the current track's stop to be confirmed.
+// Forward drops the skipped tracks and asks the audio player to stop; it
+// doesn't start the next track itself (see pendingAdvance in guild_player.go).
 func (s statePlaying) Forward(forwardCount uint) error {
 	if forwardCount == 0 {
 		return nil
@@ -51,8 +51,8 @@ func (s statePlaying) Forward(forwardCount uint) error {
 
 	const currentlyPlayingOffset = 1
 	s.player.removeQueueFront(forwardCount - currentlyPlayingOffset)
+	s.player.pendingAdvance = true
 	s.player.dcPlayer.Stop()
-	s.player.advanceQueue()
 
 	return nil
 }

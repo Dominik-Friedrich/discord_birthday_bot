@@ -33,6 +33,8 @@ func (s statePaused) TogglePause() error {
 	return nil
 }
 
+// Forward -- see statePlaying.Forward's comment: starting the next track
+// happens once controlLoop sees the audio player confirm the stop, not here.
 func (s statePaused) Forward(forwardCount uint) error {
 	if forwardCount == 0 {
 		return nil
@@ -40,8 +42,8 @@ func (s statePaused) Forward(forwardCount uint) error {
 
 	const currentlyPlayingOffset = 1
 	s.player.removeQueueFront(forwardCount - currentlyPlayingOffset)
+	s.player.pendingAdvance = true
 	s.player.dcPlayer.Stop()
-	s.player.advanceQueue()
 
 	return nil
 }

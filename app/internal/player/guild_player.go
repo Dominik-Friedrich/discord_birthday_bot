@@ -23,12 +23,41 @@ type queueItem struct {
 	requestedBy string
 }
 
+// trackInfo builds the TrackInfo shown in both the queued and now-playing
+// messages.
+func (item queueItem) trackInfo() TrackInfo {
+	return TrackInfo{
+		Title:       item.result.Info.Title,
+		URL:         item.result.Info.WebpageURL,
+		Thumbnail:   item.result.Info.Thumbnail,
+		RequestedBy: item.requestedBy,
+	}
+}
+
+// playResult is what controlLoop reports back once it applies a play
+// request: whether it started immediately, and any error from doing so.
+type playResult struct {
+	startedImmediately bool
+	err                error
+}
+
 type playRequest struct {
 	interaction *discordgo.Interaction
 	item        queueItem
-	// resp, if set, receives whether item started playing immediately
-	// (queue was empty) rather than being queued behind another track.
-	resp chan bool
+	// resp, if set, receives the outcome once controlLoop applies it.
+	resp chan playResult
+}
+
+// togglePauseResult is what controlLoop reports back for a toggle-pause
+// request: the state it landed in, and any error applying it.
+type togglePauseResult struct {
+	state StateName
+	err   error
+}
+
+type forwardRequest struct {
+	count uint
+	resp  chan error
 }
 
 // guildPlayer drives playback for a single Discord guild: one voice
@@ -55,10 +84,16 @@ type guildPlayer struct {
 	// from controlLoop, so it needs no lock of its own.
 	announceChannelID string
 
+	// pendingAdvance marks a Stop() sent for a skip: once the audio player
+	// confirms the old track stopped, controlLoop starts the next one
+	// itself, rather than advanceQueue running synchronously right after
+	// Stop() returns. Only ever touched from controlLoop.
+	pendingAdvance bool
+
 	playCh        chan playRequest
-	stopCh        chan struct{}
-	togglePauseCh chan chan StateName
-	forwardCh     chan uint
+	stopCh        chan chan error
+	togglePauseCh chan chan togglePauseResult
+	forwardCh     chan forwardRequest
 }
 
 func newGuildPlayer(guildID string, session *bot.Session, resolver *resolver) (*guildPlayer, error) {
@@ -68,9 +103,9 @@ func newGuildPlayer(guildID string, session *bot.Session, resolver *resolver) (*
 		resolver: resolver,
 
 		playCh:        make(chan playRequest),
-		stopCh:        make(chan struct{}),
-		togglePauseCh: make(chan chan StateName),
-		forwardCh:     make(chan uint),
+		stopCh:        make(chan chan error),
+		togglePauseCh: make(chan chan togglePauseResult),
+		forwardCh:     make(chan forwardRequest),
 
 		dcPlayDoneChan: make(chan discord.PlayerContext),
 	}
@@ -96,34 +131,36 @@ func (p *guildPlayer) play(ctx context.Context, i *discordgo.Interaction, query 
 
 	item := queueItem{query: query, result: result, requestedBy: requesterName(i)}
 
-	resp := make(chan bool, 1)
+	resp := make(chan playResult, 1)
 	p.playCh <- playRequest{interaction: i, item: item, resp: resp}
-	startedImmediately := <-resp
+	res := <-resp
+	if res.err != nil {
+		return TrackInfo{}, false, res.err
+	}
 
-	return TrackInfo{
-		Title:     result.Info.Title,
-		URL:       result.Info.WebpageURL,
-		Thumbnail: result.Info.Thumbnail,
-	}, startedImmediately, nil
+	return item.trackInfo(), res.startedImmediately, nil
 }
 
 func (p *guildPlayer) stop() error {
-	p.stopCh <- struct{}{}
-	return nil
+	resp := make(chan error, 1)
+	p.stopCh <- resp
+	return <-resp
 }
 
 // togglePause waits for controlLoop to actually apply the toggle and reports
 // the state it landed in, so the caller can tell a pause from a resume (or a
 // no-op, e.g. nothing was playing).
 func (p *guildPlayer) togglePause() (StateName, error) {
-	resp := make(chan StateName, 1)
+	resp := make(chan togglePauseResult, 1)
 	p.togglePauseCh <- resp
-	return <-resp, nil
+	res := <-resp
+	return res.state, res.err
 }
 
 func (p *guildPlayer) forward(forwardCount uint) error {
-	p.forwardCh <- forwardCount
-	return nil
+	resp := make(chan error, 1)
+	p.forwardCh <- forwardRequest{count: forwardCount, resp: resp}
+	return <-resp
 }
 
 // controlLoop is the only goroutine allowed to touch the state machine, so
@@ -138,28 +175,35 @@ func (p *guildPlayer) controlLoop() {
 			p.announceChannelID = req.interaction.ChannelID
 			err = p.states.getState().Play(req.interaction, req.item)
 			if req.resp != nil {
-				req.resp <- startedImmediately
+				req.resp <- playResult{startedImmediately: startedImmediately && err == nil, err: err}
 			}
 		case resp := <-p.togglePauseCh:
 			slog.Debug("toggle-pause request received", "guild_id", p.guildID, "state", p.states.getState().State())
 			err = p.states.getState().TogglePause()
-			resp <- p.states.getState().State()
-		case <-p.stopCh:
+			resp <- togglePauseResult{state: p.states.getState().State(), err: err}
+		case resp := <-p.stopCh:
 			slog.Debug("stop request received", "guild_id", p.guildID, "state", p.states.getState().State())
 			err = p.states.getState().Stop()
-		case forwardCount := <-p.forwardCh:
-			slog.Debug("forward request received", "guild_id", p.guildID, "count", forwardCount, "state", p.states.getState().State())
-			err = p.states.getState().Forward(forwardCount)
+			resp <- err
+		case req := <-p.forwardCh:
+			slog.Debug("forward request received", "guild_id", p.guildID, "count", req.count, "state", p.states.getState().State())
+			err = p.states.getState().Forward(req.count)
+			req.resp <- err
 		case ctx := <-p.dcPlayDoneChan:
-			slog.Debug("audio player reported done", "guild_id", p.guildID, "media", p.currentItem.query, "exit_reason", ctx.ExitReason)
+			slog.Debug("audio player reported done", "guild_id", p.guildID, "media", p.currentItem.query, "exit_reason", ctx.ExitReason, "pending_advance", p.pendingAdvance)
 			switch ctx.ExitReason {
 			case discord.Finished:
 				p.advanceQueue()
 			case discord.Error:
 				slog.Warn("playback error, disconnecting", "guild_id", p.guildID, "media", p.currentItem.query)
+				p.pendingAdvance = false
 				p.states.setState(Stopped)
 			case discord.Stopped:
-				// caller that issued the stop drives the next transition.
+				// Set only by a skip; a plain /stop leaves this false.
+				if p.pendingAdvance {
+					p.pendingAdvance = false
+					p.advanceQueue()
+				}
 			}
 		}
 
@@ -170,11 +214,10 @@ func (p *guildPlayer) controlLoop() {
 }
 
 // advanceQueue pops the next queued item and starts it, or moves to Idle if
-// the queue is empty. setState(Playing) alone isn't enough to start it --
-// setState no-ops when the state name doesn't change, which it won't when
-// one track's end immediately starts the next (both are just "Playing") --
-// so startPlayback/announceNowPlaying are called explicitly here rather
-// than from Playing's OnEntry.
+// the queue is empty. startPlayback/announceNowPlaying are called explicitly
+// here rather than from Playing's OnEntry, since setState no-ops when the
+// state name doesn't change (one track ending into the next is still just
+// "Playing").
 func (p *guildPlayer) advanceQueue() {
 	p.queueMutex.Lock()
 	if p.queue.Len() == 0 {
@@ -209,26 +252,25 @@ func (p *guildPlayer) startPlayback() {
 }
 
 // announceNowPlaying posts a "now playing" embed for the current item to
-// the last channel /play was used from. Called from statePlaying.OnEntry,
-// so it fires for every track that starts -- the first one included, since
-// the /play command itself skips its own "queued" message in that case.
+// the last channel /play was used from. The post itself runs off controlLoop
+// so a slow/rate-limited Discord API call can't stall command processing for
+// the whole guild.
 func (p *guildPlayer) announceNowPlaying() {
 	if p.announceChannelID == "" {
 		slog.Debug("no announce channel set, skipping now-playing message", "guild_id", p.guildID)
 		return
 	}
 
-	track := TrackInfo{
-		Title:       p.currentItem.result.Info.Title,
-		URL:         p.currentItem.result.Info.WebpageURL,
-		Thumbnail:   p.currentItem.result.Info.Thumbnail,
-		RequestedBy: p.currentItem.requestedBy,
-	}
-	if _, err := p.session.ChannelMessageSendEmbed(p.announceChannelID, track.Embed("Now playing", embedColorNowPlaying)); err != nil {
-		slog.Warn("error announcing now playing", "guild_id", p.guildID, "error", err)
-		return
-	}
-	slog.Debug("posted now-playing message", "guild_id", p.guildID, "channel_id", p.announceChannelID, "title", track.Title)
+	track := p.currentItem.trackInfo()
+	channelID := p.announceChannelID
+	guildID := p.guildID
+	go func() {
+		if _, err := p.session.ChannelMessageSendEmbed(channelID, track.Embed("Now playing", embedColorNowPlaying)); err != nil {
+			slog.Warn("error announcing now playing", "guild_id", guildID, "error", err)
+			return
+		}
+		slog.Debug("posted now-playing message", "guild_id", guildID, "channel_id", channelID, "title", track.Title)
+	}()
 }
 
 // requesterName is the display name to credit in "Requested by" -- the

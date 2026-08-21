@@ -72,11 +72,15 @@ func NewPlayer(playDone chan<- PlayerContext) (*AudioPlayer, error) {
 	}
 
 	p := &AudioPlayer{
-		playDone:    playDone,
-		play:        make(chan PlayerContext),
-		stop:        make(chan struct{}),
-		pause:       make(chan struct{}),
-		unpause:     make(chan struct{}),
+		playDone: playDone,
+		play:     make(chan PlayerContext),
+		// Buffered so Stop/Pause/Unpause never block on send: asyncPlayRoutine's
+		// playDone send (below) isn't select-guarded, so a caller racing that
+		// window would otherwise deadlock waiting for a receiver that's itself
+		// waiting on the caller.
+		stop:        make(chan struct{}, 1),
+		pause:       make(chan struct{}, 1),
+		unpause:     make(chan struct{}, 1),
 		opusEncoder: opusEncoder,
 	}
 
@@ -101,10 +105,18 @@ func (p *AudioPlayer) Unpause() {
 	p.unpause <- struct{}{}
 }
 
+// asyncPlayRoutine also drains stop/pause/unpause while idle, so those calls
+// are always safe even when nothing is playing.
 func (p *AudioPlayer) asyncPlayRoutine() {
-	for ctx := range p.play {
-		ctx.ExitReason = p.playAudioStream(ctx.Vc, ctx.Result)
-		p.playDone <- ctx
+	for {
+		select {
+		case ctx := <-p.play:
+			ctx.ExitReason = p.playAudioStream(ctx.Vc, ctx.Result)
+			p.playDone <- ctx
+		case <-p.stop:
+		case <-p.pause:
+		case <-p.unpause:
+		}
 	}
 }
 
@@ -191,7 +203,17 @@ func (p *AudioPlayer) playAudioStream(v *discordgo.VoiceConnection, result goutu
 // sendPCM Opus-encodes and sends PCM frames until pcm closes (Finished) or
 // encoding/sending fails (Error) -- a not-ready connection used to fail
 // silently here instead.
-func (p *AudioPlayer) sendPCM(v *discordgo.VoiceConnection, pcm <-chan []int16) ExitReason {
+func (p *AudioPlayer) sendPCM(v *discordgo.VoiceConnection, pcm <-chan []int16) (reason ExitReason) {
+	// v.Status/v.OpusSend are read without the connection's own lock, so a
+	// concurrent Kill() closing OpusSend can make the send below panic --
+	// recovered here so that fails this one track instead of the process.
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Warn("recovered panic sending opus frame", "panic", r)
+			reason = Error
+		}
+	}()
+
 	for recv := range pcm {
 		opus, err := p.opusEncoder.Encode(recv, frameSize, maxBytes)
 		if err != nil {
