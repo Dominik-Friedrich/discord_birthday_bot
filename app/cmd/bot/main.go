@@ -19,6 +19,7 @@ import (
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/complaint"
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/config"
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/database"
+	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/player"
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/retry"
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/user"
 )
@@ -81,6 +82,7 @@ func run(cfg config.Config) error {
 
 	birthdayBot.RegisterFeature(birthday.New(userRepo, roleRepo))
 	birthdayBot.RegisterFeature(complaint.New(complaintRepo))
+	birthdayBot.RegisterFeature(player.New(cfg.Player.MaxMediaDuration))
 
 	return birthdayBot.Run(ctx)
 }

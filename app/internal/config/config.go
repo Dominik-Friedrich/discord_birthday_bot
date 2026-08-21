@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/database"
 
 	"github.com/spf13/viper"
@@ -11,9 +13,16 @@ type Discord struct {
 	ApplicationID string
 }
 
+type Player struct {
+	// MaxMediaDuration rejects a track at queue time if it's longer than
+	// this.
+	MaxMediaDuration time.Duration
+}
+
 type Config struct {
 	Database database.Config
 	Discord  Discord
+	Player   Player
 	// LogLevel is one of debug, info, warn, error.
 	LogLevel string
 }
@@ -36,6 +45,9 @@ func Load() Config {
 	_ = viper.BindEnv("log_level")
 	viper.SetDefault("log_level", "info")
 
+	_ = viper.BindEnv("player_max_media_duration")
+	viper.SetDefault("player_max_media_duration", "10m")
+
 	viper.AutomaticEnv()
 
 	return Config{
@@ -50,6 +62,9 @@ func Load() Config {
 		Discord: Discord{
 			Token:         viper.GetString("discord_token"),
 			ApplicationID: viper.GetString("discord_application_id"),
+		},
+		Player: Player{
+			MaxMediaDuration: viper.GetDuration("player_max_media_duration"),
 		},
 		LogLevel: viper.GetString("log_level"),
 	}

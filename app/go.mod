@@ -4,10 +4,13 @@ go 1.27
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
+	github.com/gammazero/deque v1.2.1
 	github.com/go-co-op/gocron/v2 v2.22.0
 	github.com/spf13/viper v1.21.0
+	github.com/wader/goutubedl v0.0.0-20260820181547-08cab29d2129
 	gorm.io/driver/postgres v1.6.2
 	gorm.io/gorm v1.31.2
+	layeh.com/gopus v0.0.0-20210501142526-1ee02d434e32
 )
 
 require (
