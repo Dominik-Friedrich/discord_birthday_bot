@@ -181,7 +181,7 @@ func (p *AudioPlayer) sendPCM(v *discordgo.VoiceConnection, pcm <-chan []int16) 
 			return Error
 		}
 
-		if !v.Ready || v.OpusSend == nil {
+		if v.Status != discordgo.VoiceConnectionStatusReady || v.OpusSend == nil {
 			slog.Warn("voice connection not ready, aborting playback")
 			return Error
 		}

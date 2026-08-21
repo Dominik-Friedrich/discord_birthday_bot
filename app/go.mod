@@ -2,6 +2,9 @@ module github.com/Dominik-Friedrich/discord_birthday_bot
 
 go 1.27
 
+// discordgo does not yet implement DAVE, which is required by discord voicechat, use fork until its merged
+replace github.com/bwmarrin/discordgo => github.com/yeongaori/discordgo-fork v0.0.0-20260627070107-c65bda26a53b
+
 require (
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/gammazero/deque v1.2.1
@@ -14,6 +17,7 @@ require (
 )
 
 require (
+	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect

@@ -1,7 +1,9 @@
 package player
 
 import (
+	"context"
 	"log/slog"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -22,10 +24,11 @@ func (s stateStopped) OnEntry(_ State) {
 	s.player.vcMutex.Lock()
 	vc := s.player.currentVc
 	if vc != nil {
-		if err := vc.Disconnect(); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := vc.Disconnect(ctx); err != nil {
 			slog.Warn("error disconnecting from voice channel", "error", err)
 		}
-		vc.Close()
+		cancel()
 		s.player.currentVc = nil
 	}
 	s.player.vcMutex.Unlock()

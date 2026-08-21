@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gammazero/deque"
@@ -179,7 +180,7 @@ func (p *guildPlayer) removeQueueFront(count uint) {
 	p.queueMutex.Lock()
 	defer p.queueMutex.Unlock()
 
-	for i := uint(0); i < count; i++ {
+	for range count {
 		if p.queue.Len() == 0 {
 			return
 		}
@@ -213,9 +214,19 @@ func (p *guildPlayer) initVc(i *discordgo.Interaction) error {
 		return errors.New("you need to be in a voice channel")
 	}
 
-	vc, err := p.session.ChannelVoiceJoin(i.GuildID, channelID, false, true)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	vc, err := p.session.ChannelVoiceJoin(ctx, i.GuildID, channelID, false, true)
 	if err != nil {
 		return fmt.Errorf("joining voice channel: %w", err)
+	}
+
+	// Discord requires DAVE (E2EE) for voice; frames sent before the DAVE
+	// handshake completes go out unencrypted and get dropped, so wait for it
+	// here rather than losing the first moment of audio on every track.
+	if err := vc.WaitForDAVEReady(ctx); err != nil {
+		return fmt.Errorf("waiting for voice encryption: %w", err)
 	}
 
 	p.currentVc = vc
