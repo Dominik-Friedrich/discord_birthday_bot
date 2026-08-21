@@ -38,8 +38,10 @@ func (p *pauseCommand) Command() *discordgo.ApplicationCommand {
 }
 
 func (p *pauseCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	response := "success_paused"
-	if err := p.player.TogglePause(i.Interaction); err != nil {
+	state, err := p.player.TogglePause(i.Interaction)
+
+	response := togglePauseMessage(state)
+	if err != nil {
 		slog.Warn("error toggling pause", "error", err)
 		response = err.Error()
 	}
@@ -51,5 +53,16 @@ func (p *pauseCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 		},
 	}); err != nil {
 		slog.Warn("error responding to command prompt", "error", err)
+	}
+}
+
+func togglePauseMessage(state StateName) string {
+	switch state {
+	case Paused:
+		return "Paused."
+	case Playing:
+		return "Resumed."
+	default:
+		return "Nothing is playing right now."
 	}
 }

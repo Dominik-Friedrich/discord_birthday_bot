@@ -17,12 +17,46 @@ import (
 
 const featurePlayer = "featurePlayer"
 
+const (
+	embedColorQueued     = 0x1DB954
+	embedColorNowPlaying = 0x5865F2
+)
+
+// TrackInfo is what a command needs to tell the user what got queued.
+type TrackInfo struct {
+	Title     string
+	URL       string
+	Thumbnail string
+}
+
+// Embed builds a Discord embed announcing this track, its title linking to
+// URL, with description as the caller-chosen status line (e.g. "Added to
+// the queue", "Now playing").
+func (t TrackInfo) Embed(description string, color int) *discordgo.MessageEmbed {
+	embed := &discordgo.MessageEmbed{
+		Title:       t.Title,
+		URL:         t.URL,
+		Description: description,
+		Color:       color,
+	}
+	if t.Thumbnail != "" {
+		embed.Thumbnail = &discordgo.MessageEmbedThumbnail{URL: t.Thumbnail}
+	}
+	return embed
+}
+
 // IPlayer is the playback control surface the slash commands drive, keeping
 // the state machine decoupled from the Discord command layer.
 type IPlayer interface {
-	Play(ctx context.Context, i *discordgo.Interaction, query string) (title string, err error)
+	// Play returns whether the track started playing immediately (queue was
+	// empty), so the caller can skip showing a redundant "queued" message --
+	// the player announces "now playing" itself in that case.
+	Play(ctx context.Context, i *discordgo.Interaction, query string) (track TrackInfo, startedImmediately bool, err error)
 	Stop(i *discordgo.Interaction) error
-	TogglePause(i *discordgo.Interaction) error
+	// TogglePause returns the state the player ended up in, so the command
+	// can report whether it actually paused or resumed (or did nothing,
+	// e.g. Stopped/Idle).
+	TogglePause(i *discordgo.Interaction) (StateName, error)
 	Forward(i *discordgo.Interaction, forwardCount uint) error
 }
 
@@ -61,10 +95,10 @@ func (f *Feature) Commands() []bot.Command {
 	}
 }
 
-func (f *Feature) Play(ctx context.Context, i *discordgo.Interaction, query string) (string, error) {
+func (f *Feature) Play(ctx context.Context, i *discordgo.Interaction, query string) (TrackInfo, bool, error) {
 	p, err := f.playerFor(i.GuildID)
 	if err != nil {
-		return "", err
+		return TrackInfo{}, false, err
 	}
 	return p.play(ctx, i, query)
 }
@@ -77,10 +111,10 @@ func (f *Feature) Stop(i *discordgo.Interaction) error {
 	return p.stop()
 }
 
-func (f *Feature) TogglePause(i *discordgo.Interaction) error {
+func (f *Feature) TogglePause(i *discordgo.Interaction) (StateName, error) {
 	p, err := f.playerFor(i.GuildID)
 	if err != nil {
-		return err
+		return "", err
 	}
 	return p.togglePause()
 }

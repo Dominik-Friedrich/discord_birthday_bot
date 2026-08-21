@@ -38,7 +38,7 @@ func (p *stopCommand) Command() *discordgo.ApplicationCommand {
 }
 
 func (p *stopCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	response := "success_stopped"
+	response := "Stopped playback."
 	if err := p.player.Stop(i.Interaction); err != nil {
 		slog.Warn("error stopping player", "error", err)
 		response = err.Error()

@@ -82,7 +82,7 @@ func (b *DiscordBot) Run(ctx context.Context) error {
 		return fmt.Errorf("registering commands: %w", err)
 	}
 
-	slog.Info("bot is running, press Ctrl+C to exit")
+	slog.Info("bot is running")
 	<-ctx.Done()
 
 	slog.Info("gracefully shutting down")

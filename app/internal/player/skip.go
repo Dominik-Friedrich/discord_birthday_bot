@@ -1,6 +1,7 @@
 package player
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/bwmarrin/discordgo"
@@ -49,8 +50,10 @@ func (p *skipCommand) Command() *discordgo.ApplicationCommand {
 }
 
 func (p *skipCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	response := "success_skipping"
-	if err := p.skipAudio(i); err != nil {
+	skipAmount := skipAmountOption(i)
+
+	response := skipMessage(skipAmount)
+	if err := p.player.Forward(i.Interaction, skipAmount); err != nil {
 		slog.Warn("error skipping audio", "error", err)
 		response = err.Error()
 	}
@@ -65,13 +68,19 @@ func (p *skipCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 }
 
-func (p *skipCommand) skipAudio(i *discordgo.InteractionCreate) error {
+func skipAmountOption(i *discordgo.InteractionCreate) uint {
 	optionMap := bot.OptionMap(i.ApplicationCommandData().Options)
 
 	skipAmount := uint(1)
 	if opt, ok := optionMap[paramSkipAmount]; ok {
 		skipAmount = uint(opt.UintValue())
 	}
+	return skipAmount
+}
 
-	return p.player.Forward(i.Interaction, skipAmount)
+func skipMessage(skipAmount uint) string {
+	if skipAmount == 1 {
+		return "Skipped to the next track."
+	}
+	return fmt.Sprintf("Skipped %d tracks.", skipAmount)
 }

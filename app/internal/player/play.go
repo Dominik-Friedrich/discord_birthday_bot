@@ -3,7 +3,6 @@ package player
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	"github.com/bwmarrin/discordgo"
@@ -61,34 +60,44 @@ func (p *playCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		return
 	}
 
-	response, err := p.playAudio(s, i)
+	track, startedImmediately, err := p.playAudio(i)
 	if err != nil {
 		slog.Warn("error playing audio", "error", err)
-		response = err.Error()
+		errMsg := err.Error()
+		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &errMsg}); err != nil {
+			slog.Warn("error editing interaction response", "error", err)
+		}
+		return
 	}
 
+	if startedImmediately {
+		// The player announces "now playing" itself for this one -- deleting
+		// the deferred response instead of editing it avoids showing both
+		// that a "queued" message and a "now playing" message for one song.
+		if err := s.InteractionResponseDelete(i.Interaction); err != nil {
+			slog.Warn("error deleting interaction response", "error", err)
+		}
+		return
+	}
+
+	embed := track.Embed("Added to the queue", embedColorQueued)
 	if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Content: &response,
+		Embeds: &[]*discordgo.MessageEmbed{embed},
 	}); err != nil {
 		slog.Warn("error editing interaction response", "error", err)
 	}
 }
 
-func (p *playCommand) playAudio(_ *discordgo.Session, i *discordgo.InteractionCreate) (string, error) {
+func (p *playCommand) playAudio(i *discordgo.InteractionCreate) (TrackInfo, bool, error) {
 	if i.Member == nil {
-		return "", errors.New("unable to determine who to play for")
+		return TrackInfo{}, false, errors.New("unable to determine who to play for")
 	}
 
 	optionMap := bot.OptionMap(i.ApplicationCommandData().Options)
 	opt, ok := optionMap[paramQuery]
 	if !ok {
-		return "", errors.New("query is a required field")
+		return TrackInfo{}, false, errors.New("query is a required field")
 	}
 
-	title, err := p.player.Play(context.Background(), i.Interaction, opt.StringValue())
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("queued: %s", title), nil
+	return p.player.Play(context.Background(), i.Interaction, opt.StringValue())
 }

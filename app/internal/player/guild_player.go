@@ -25,6 +25,9 @@ type queueItem struct {
 type playRequest struct {
 	interaction *discordgo.Interaction
 	item        queueItem
+	// resp, if set, receives whether item started playing immediately
+	// (queue was empty) rather than being queued behind another track.
+	resp chan bool
 }
 
 // guildPlayer drives playback for a single Discord guild: one voice
@@ -45,9 +48,14 @@ type guildPlayer struct {
 	queue       deque.Deque[queueItem]
 	queueMutex  sync.Mutex
 
+	// announceChannelID is the text channel "now playing" messages get
+	// posted to -- the channel /play was last used from. Only ever touched
+	// from controlLoop, so it needs no lock of its own.
+	announceChannelID string
+
 	playCh        chan playRequest
 	stopCh        chan struct{}
-	togglePauseCh chan struct{}
+	togglePauseCh chan chan StateName
 	forwardCh     chan uint
 }
 
@@ -58,7 +66,7 @@ func newGuildPlayer(session *bot.Session, resolver *resolver) (*guildPlayer, err
 
 		playCh:        make(chan playRequest),
 		stopCh:        make(chan struct{}),
-		togglePauseCh: make(chan struct{}),
+		togglePauseCh: make(chan chan StateName),
 		forwardCh:     make(chan uint),
 
 		dcPlayDoneChan: make(chan discord.PlayerContext),
@@ -77,15 +85,21 @@ func newGuildPlayer(session *bot.Session, resolver *resolver) (*guildPlayer, err
 	return p, nil
 }
 
-func (p *guildPlayer) play(ctx context.Context, i *discordgo.Interaction, query string) (string, error) {
+func (p *guildPlayer) play(ctx context.Context, i *discordgo.Interaction, query string) (TrackInfo, bool, error) {
 	result, err := p.resolver.resolve(ctx, query)
 	if err != nil {
-		return "", err
+		return TrackInfo{}, false, err
 	}
 
-	p.playCh <- playRequest{interaction: i, item: queueItem{query: query, result: result}}
+	resp := make(chan bool, 1)
+	p.playCh <- playRequest{interaction: i, item: queueItem{query: query, result: result}, resp: resp}
+	startedImmediately := <-resp
 
-	return result.Info.Title, nil
+	return TrackInfo{
+		Title:     result.Info.Title,
+		URL:       result.Info.WebpageURL,
+		Thumbnail: result.Info.Thumbnail,
+	}, startedImmediately, nil
 }
 
 func (p *guildPlayer) stop() error {
@@ -93,9 +107,13 @@ func (p *guildPlayer) stop() error {
 	return nil
 }
 
-func (p *guildPlayer) togglePause() error {
-	p.togglePauseCh <- struct{}{}
-	return nil
+// togglePause waits for controlLoop to actually apply the toggle and reports
+// the state it landed in, so the caller can tell a pause from a resume (or a
+// no-op, e.g. nothing was playing).
+func (p *guildPlayer) togglePause() (StateName, error) {
+	resp := make(chan StateName, 1)
+	p.togglePauseCh <- resp
+	return <-resp, nil
 }
 
 func (p *guildPlayer) forward(forwardCount uint) error {
@@ -110,9 +128,15 @@ func (p *guildPlayer) controlLoop() {
 		var err error
 		select {
 		case req := <-p.playCh:
+			startedImmediately := p.states.getState().State() == Stopped || p.states.getState().State() == Idle
+			p.announceChannelID = req.interaction.ChannelID
 			err = p.states.getState().Play(req.interaction, req.item)
-		case <-p.togglePauseCh:
+			if req.resp != nil {
+				req.resp <- startedImmediately
+			}
+		case resp := <-p.togglePauseCh:
 			err = p.states.getState().TogglePause()
+			resp <- p.states.getState().State()
 		case <-p.stopCh:
 			err = p.states.getState().Stop()
 		case forwardCount := <-p.forwardCh:
@@ -162,6 +186,25 @@ func (p *guildPlayer) startPlayback() {
 		Vc:     vc,
 		Result: p.currentItem.result,
 	})
+}
+
+// announceNowPlaying posts a "now playing" embed for the current item to
+// the last channel /play was used from. Called from statePlaying.OnEntry,
+// so it fires for every track that starts -- the first one included, since
+// the /play command itself skips its own "queued" message in that case.
+func (p *guildPlayer) announceNowPlaying() {
+	if p.announceChannelID == "" {
+		return
+	}
+
+	track := TrackInfo{
+		Title:     p.currentItem.result.Info.Title,
+		URL:       p.currentItem.result.Info.WebpageURL,
+		Thumbnail: p.currentItem.result.Info.Thumbnail,
+	}
+	if _, err := p.session.ChannelMessageSendEmbed(p.announceChannelID, track.Embed("Now playing", embedColorNowPlaying)); err != nil {
+		slog.Warn("error announcing now playing", "error", err)
+	}
 }
 
 func (p *guildPlayer) enqueueBack(item queueItem) {

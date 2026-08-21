@@ -13,6 +13,7 @@ func (s statePlaying) State() StateName {
 func (s statePlaying) OnEntry(_ State) {
 	s.player.speaking(true)
 	s.player.startPlayback()
+	s.player.announceNowPlaying()
 }
 
 func (s statePlaying) OnExit() {
