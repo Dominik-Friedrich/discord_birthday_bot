@@ -27,7 +27,7 @@ const (
 	// channel tidy without yanking them away instantly. The "now playing"
 	// announcement is exempt -- it's not tied to a command response, and is
 	// meant to stay as a reference for what's currently playing.
-	cleanupDelay = 1 * time.Minute
+	cleanupDelay = 30 * time.Second
 )
 
 // scheduleCleanup deletes i's response after cleanupDelay.
