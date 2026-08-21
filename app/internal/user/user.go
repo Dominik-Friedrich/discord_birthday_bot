@@ -5,6 +5,7 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -27,13 +28,12 @@ type Repository struct {
 	db *database.Connection
 }
 
-func NewRepository(db *database.Connection) *Repository {
+func NewRepository(db *database.Connection) (*Repository, error) {
 	if err := db.AutoMigrate(&User{}); err != nil {
-		slog.Error("error migrating user schema", "error", err)
-		panic(err)
+		return nil, fmt.Errorf("migrating user schema: %w", err)
 	}
 
-	return &Repository{db: db}
+	return &Repository{db: db}, nil
 }
 
 func (r *Repository) GetUsers(ctx context.Context, birthday time.Time) ([]User, error) {

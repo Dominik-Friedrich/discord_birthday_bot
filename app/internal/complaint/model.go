@@ -2,7 +2,7 @@ package complaint
 
 import (
 	"context"
-	"log/slog"
+	"fmt"
 
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/database"
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/user"
@@ -35,13 +35,12 @@ type Repository struct {
 // NewRepository migrates the complaint/reply schema. It must be constructed
 // after the user schema has been migrated, since Complaint and Reply both
 // carry foreign keys into the users table.
-func NewRepository(db *database.Connection, users UserRepository) *Repository {
+func NewRepository(db *database.Connection, users UserRepository) (*Repository, error) {
 	if err := db.AutoMigrate(&Reply{}, &Complaint{}); err != nil {
-		slog.Error("error migrating complaint schema", "error", err)
-		panic(err)
+		return nil, fmt.Errorf("migrating complaint schema: %w", err)
 	}
 
-	return &Repository{db: db, users: users}
+	return &Repository{db: db, users: users}, nil
 }
 
 func (r *Repository) AddComplaint(ctx context.Context, complaint Complaint) error {

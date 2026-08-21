@@ -2,9 +2,8 @@ package bot
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
-	"os"
-	"os/signal"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -20,12 +19,11 @@ type Session struct {
 	*discordgo.Session
 }
 
-func New(apiToken, applicationId string) *DiscordBot {
+func New(apiToken, applicationId string) (*DiscordBot, error) {
 	token := "Bot " + apiToken
 	dcClient, err := discordgo.New(token)
 	if err != nil {
-		slog.Error("invalid bot parameters", "error", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("creating discord client: %w", err)
 	}
 
 	b := new(DiscordBot)
@@ -37,7 +35,7 @@ func New(apiToken, applicationId string) *DiscordBot {
 	b.features = make(map[string]Feature)
 	b.init()
 
-	return b
+	return b, nil
 }
 
 func (b *DiscordBot) RegisterCommand(command Command) {
@@ -57,23 +55,20 @@ func (b *DiscordBot) Session() *Session {
 }
 
 // Run opens the Discord session, initializes all registered features, and
-// blocks until an interrupt signal is received.
-func (b *DiscordBot) Run() {
-	err := b.session.Open()
-	if err != nil {
-		slog.Error("cannot open the session", "error", err)
-		os.Exit(1)
+// blocks until ctx is cancelled.
+func (b *DiscordBot) Run(ctx context.Context) error {
+	if err := b.session.Open(); err != nil {
+		return fmt.Errorf("opening discord session: %w", err)
 	}
-	defer func(client *Session) {
-		if err := client.Close(); err != nil {
-			slog.Error("error closing the discord session", "error", err)
+	defer func(session *Session) {
+		if err := session.Close(); err != nil {
+			slog.Warn("error closing the discord session", "error", err)
 		}
 	}(b.session)
 
 	for _, feature := range b.features {
 		if err := feature.Init(b.session); err != nil {
-			slog.Error("error registering feature", "feature", feature.Name(), "error", err)
-			os.Exit(1)
+			return fmt.Errorf("initializing feature %q: %w", feature.Name(), err)
 		}
 	}
 
@@ -84,17 +79,14 @@ func (b *DiscordBot) Run() {
 		slog.Debug("added command", "name", name)
 	}
 	if _, err := b.session.ApplicationCommandBulkOverwrite(b.session.State.User.ID, "", commands); err != nil {
-		slog.Error("error creating commands", "error", err)
-		panic(err)
+		return fmt.Errorf("registering commands: %w", err)
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
 
 	slog.Info("bot is running, press Ctrl+C to exit")
 	<-ctx.Done()
 
 	slog.Info("gracefully shutting down")
+	return nil
 }
 
 func (b *DiscordBot) init() {

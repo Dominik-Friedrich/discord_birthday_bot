@@ -3,6 +3,7 @@ package birthday
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/database"
@@ -36,13 +37,12 @@ type RoleRepository struct {
 	db *database.Connection
 }
 
-func NewRoleRepository(db *database.Connection) *RoleRepository {
+func NewRoleRepository(db *database.Connection) (*RoleRepository, error) {
 	if err := db.AutoMigrate(&Role{}, &RoleHolder{}); err != nil {
-		slog.Error("error migrating birthday role schema", "error", err)
-		panic(err)
+		return nil, fmt.Errorf("migrating birthday role schema: %w", err)
 	}
 
-	return &RoleRepository{db: db}
+	return &RoleRepository{db: db}, nil
 }
 
 func (r *RoleRepository) SetBirthdayRoleId(ctx context.Context, guildId, roleId string, custom bool) error {
