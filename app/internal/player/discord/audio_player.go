@@ -34,6 +34,19 @@ const (
 	Error
 )
 
+func (e ExitReason) String() string {
+	switch e {
+	case Finished:
+		return "finished"
+	case Stopped:
+		return "stopped"
+	case Error:
+		return "error"
+	default:
+		return "unknown"
+	}
+}
+
 type PlayerContext struct {
 	Vc         *discordgo.VoiceConnection
 	Result     goutubedl.Result
@@ -98,12 +111,16 @@ func (p *AudioPlayer) asyncPlayRoutine() {
 // playAudioStream streams the track live through ffmpeg for PCM transcoding
 // and sends it to v. Cancelling ctx kills both the yt-dlp and ffmpeg
 // subprocesses, since both are tied to it.
-func (p *AudioPlayer) playAudioStream(v *discordgo.VoiceConnection, result goutubedl.Result) ExitReason {
+func (p *AudioPlayer) playAudioStream(v *discordgo.VoiceConnection, result goutubedl.Result) (reason ExitReason) {
+	title := result.Info.Title
+	slog.Debug("starting audio stream", "title", title)
+	defer func() { slog.Debug("audio stream ended", "title", title, "exit_reason", reason) }()
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	stream, err := result.Download(ctx, "bestaudio")
 	if err != nil {
-		slog.Warn("error starting audio stream", "error", err)
+		slog.Warn("error starting audio stream", "title", title, "error", err)
 		cancel()
 		return Error
 	}
@@ -118,15 +135,16 @@ func (p *AudioPlayer) playAudioStream(v *discordgo.VoiceConnection, result goutu
 
 	ffmpegOut, err := run.StdoutPipe()
 	if err != nil {
-		slog.Warn("error creating ffmpeg stdout pipe", "error", err)
+		slog.Warn("error creating ffmpeg stdout pipe", "title", title, "error", err)
 		return Error
 	}
 	ffmpegBuf := bufio.NewReaderSize(ffmpegOut, 16384)
 
 	if err := run.Start(); err != nil {
-		slog.Warn("error starting ffmpeg", "error", err)
+		slog.Warn("error starting ffmpeg", "title", title, "error", err)
 		return Error
 	}
+	slog.Debug("ffmpeg started", "title", title)
 
 	send := make(chan []int16, 2)
 	sendResult := make(chan ExitReason, 1)

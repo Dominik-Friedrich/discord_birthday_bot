@@ -51,5 +51,7 @@ func (p *stopCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		},
 	}); err != nil {
 		slog.Warn("error responding to command prompt", "error", err)
+		return
 	}
+	scheduleCleanup(s, i.Interaction)
 }

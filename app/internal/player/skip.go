@@ -65,7 +65,9 @@ func (p *skipCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		},
 	}); err != nil {
 		slog.Warn("error responding to command prompt", "error", err)
+		return
 	}
+	scheduleCleanup(s, i.Interaction)
 }
 
 func skipAmountOption(i *discordgo.InteractionCreate) uint {

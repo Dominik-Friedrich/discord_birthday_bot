@@ -7,6 +7,7 @@ package player
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -20,13 +21,33 @@ const featurePlayer = "featurePlayer"
 const (
 	embedColorQueued     = 0x1DB954
 	embedColorNowPlaying = 0x5865F2
+
+	// cleanupDelay is how long command confirmations (queued/paused/
+	// stopped/skipped) stick around before being deleted, to keep the
+	// channel tidy without yanking them away instantly. The "now playing"
+	// announcement is exempt -- it's not tied to a command response, and is
+	// meant to stay as a reference for what's currently playing.
+	cleanupDelay = 5 * time.Minute
 )
+
+// scheduleCleanup deletes i's response after cleanupDelay.
+func scheduleCleanup(s *discordgo.Session, i *discordgo.Interaction) {
+	slog.Debug("scheduled message cleanup", "guild_id", i.GuildID, "delay", cleanupDelay)
+	time.AfterFunc(cleanupDelay, func() {
+		if err := s.InteractionResponseDelete(i); err != nil {
+			slog.Warn("error cleaning up player message", "error", err)
+			return
+		}
+		slog.Debug("cleaned up player message", "guild_id", i.GuildID)
+	})
+}
 
 // TrackInfo is what a command needs to tell the user what got queued.
 type TrackInfo struct {
-	Title     string
-	URL       string
-	Thumbnail string
+	Title       string
+	URL         string
+	Thumbnail   string
+	RequestedBy string // display name; empty to omit
 }
 
 // Embed builds a Discord embed announcing this track, its title linking to
@@ -41,6 +62,9 @@ func (t TrackInfo) Embed(description string, color int) *discordgo.MessageEmbed 
 	}
 	if t.Thumbnail != "" {
 		embed.Thumbnail = &discordgo.MessageEmbedThumbnail{URL: t.Thumbnail}
+	}
+	if t.RequestedBy != "" {
+		embed.Footer = &discordgo.MessageEmbedFooter{Text: "Requested by " + t.RequestedBy}
 	}
 	return embed
 }
@@ -136,7 +160,8 @@ func (f *Feature) playerFor(guildID string) (*guildPlayer, error) {
 		return p, nil
 	}
 
-	p, err := newGuildPlayer(f.session, f.resolver)
+	slog.Debug("creating player for guild", "guild_id", guildID)
+	p, err := newGuildPlayer(guildID, f.session, f.resolver)
 	if err != nil {
 		return nil, fmt.Errorf("initializing player: %w", err)
 	}

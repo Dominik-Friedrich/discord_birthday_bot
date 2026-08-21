@@ -67,6 +67,7 @@ func (p *playCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &errMsg}); err != nil {
 			slog.Warn("error editing interaction response", "error", err)
 		}
+		scheduleCleanup(s, i.Interaction)
 		return
 	}
 
@@ -86,6 +87,7 @@ func (p *playCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 	}); err != nil {
 		slog.Warn("error editing interaction response", "error", err)
 	}
+	scheduleCleanup(s, i.Interaction)
 }
 
 func (p *playCommand) playAudio(i *discordgo.InteractionCreate) (TrackInfo, bool, error) {

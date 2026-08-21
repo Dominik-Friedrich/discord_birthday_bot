@@ -5,6 +5,7 @@ package youtube
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 
 	"github.com/wader/goutubedl"
@@ -15,6 +16,7 @@ import (
 func Resolve(ctx context.Context, query string) (goutubedl.Result, error) {
 	target := query
 	if !isURL(query) {
+		slog.Debug("resolving as search query", "query", query)
 		videoURL, err := searchTopResult(ctx, query)
 		if err != nil {
 			return goutubedl.Result{}, err
@@ -22,8 +24,14 @@ func Resolve(ctx context.Context, query string) (goutubedl.Result, error) {
 		target = videoURL
 	}
 
+	slog.Debug("resolving track", "target", target)
 	// TypeSingle rejects bare playlist URLs.
-	return goutubedl.New(ctx, target, goutubedl.Options{Type: goutubedl.TypeSingle})
+	result, err := goutubedl.New(ctx, target, goutubedl.Options{Type: goutubedl.TypeSingle})
+	if err != nil {
+		return goutubedl.Result{}, err
+	}
+	slog.Debug("resolved track", "target", target, "title", result.Info.Title, "duration_seconds", result.Info.Duration)
+	return result, nil
 }
 
 // searchTopResult finds the top hit for query and returns its own URL.
@@ -41,9 +49,11 @@ func searchTopResult(ctx context.Context, query string) (string, error) {
 
 	top := result.Info.Entries[0]
 	if top.WebpageURL != "" {
+		slog.Debug("search top result", "query", query, "url", top.WebpageURL, "title", top.Title)
 		return top.WebpageURL, nil
 	}
 	if top.ID != "" {
+		slog.Debug("search top result", "query", query, "id", top.ID, "title", top.Title)
 		return top.ID, nil
 	}
 	return "", fmt.Errorf("no results for %q", query)

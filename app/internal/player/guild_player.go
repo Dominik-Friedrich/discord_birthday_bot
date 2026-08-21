@@ -18,8 +18,9 @@ import (
 
 // queueItem is a track already resolved and duration-validated by resolver.
 type queueItem struct {
-	query  string
-	result goutubedl.Result
+	query       string
+	result      goutubedl.Result
+	requestedBy string
 }
 
 type playRequest struct {
@@ -33,6 +34,7 @@ type playRequest struct {
 // guildPlayer drives playback for a single Discord guild: one voice
 // connection, one queue, one state machine, one control-loop goroutine.
 type guildPlayer struct {
+	guildID  string
 	session  *bot.Session
 	resolver *resolver
 
@@ -59,8 +61,9 @@ type guildPlayer struct {
 	forwardCh     chan uint
 }
 
-func newGuildPlayer(session *bot.Session, resolver *resolver) (*guildPlayer, error) {
+func newGuildPlayer(guildID string, session *bot.Session, resolver *resolver) (*guildPlayer, error) {
 	p := &guildPlayer{
+		guildID:  guildID,
 		session:  session,
 		resolver: resolver,
 
@@ -91,8 +94,10 @@ func (p *guildPlayer) play(ctx context.Context, i *discordgo.Interaction, query 
 		return TrackInfo{}, false, err
 	}
 
+	item := queueItem{query: query, result: result, requestedBy: requesterName(i)}
+
 	resp := make(chan bool, 1)
-	p.playCh <- playRequest{interaction: i, item: queueItem{query: query, result: result}, resp: resp}
+	p.playCh <- playRequest{interaction: i, item: item, resp: resp}
 	startedImmediately := <-resp
 
 	return TrackInfo{
@@ -129,24 +134,29 @@ func (p *guildPlayer) controlLoop() {
 		select {
 		case req := <-p.playCh:
 			startedImmediately := p.states.getState().State() == Stopped || p.states.getState().State() == Idle
+			slog.Debug("play request received", "guild_id", p.guildID, "query", req.item.query, "requested_by", req.item.requestedBy, "state", p.states.getState().State())
 			p.announceChannelID = req.interaction.ChannelID
 			err = p.states.getState().Play(req.interaction, req.item)
 			if req.resp != nil {
 				req.resp <- startedImmediately
 			}
 		case resp := <-p.togglePauseCh:
+			slog.Debug("toggle-pause request received", "guild_id", p.guildID, "state", p.states.getState().State())
 			err = p.states.getState().TogglePause()
 			resp <- p.states.getState().State()
 		case <-p.stopCh:
+			slog.Debug("stop request received", "guild_id", p.guildID, "state", p.states.getState().State())
 			err = p.states.getState().Stop()
 		case forwardCount := <-p.forwardCh:
+			slog.Debug("forward request received", "guild_id", p.guildID, "count", forwardCount, "state", p.states.getState().State())
 			err = p.states.getState().Forward(forwardCount)
 		case ctx := <-p.dcPlayDoneChan:
+			slog.Debug("audio player reported done", "guild_id", p.guildID, "media", p.currentItem.query, "exit_reason", ctx.ExitReason)
 			switch ctx.ExitReason {
 			case discord.Finished:
 				p.advanceQueue()
 			case discord.Error:
-				slog.Warn("playback error, disconnecting", "media", p.currentItem.query)
+				slog.Warn("playback error, disconnecting", "guild_id", p.guildID, "media", p.currentItem.query)
 				p.states.setState(Stopped)
 			case discord.Stopped:
 				// caller that issued the stop drives the next transition.
@@ -154,25 +164,34 @@ func (p *guildPlayer) controlLoop() {
 		}
 
 		if err != nil {
-			slog.Warn("error in player control loop", "error", err)
+			slog.Warn("error in player control loop", "guild_id", p.guildID, "error", err)
 		}
 	}
 }
 
-// advanceQueue pops the next queued item and moves to Playing, or to Idle
-// if the queue is empty.
+// advanceQueue pops the next queued item and starts it, or moves to Idle if
+// the queue is empty. setState(Playing) alone isn't enough to start it --
+// setState no-ops when the state name doesn't change, which it won't when
+// one track's end immediately starts the next (both are just "Playing") --
+// so startPlayback/announceNowPlaying are called explicitly here rather
+// than from Playing's OnEntry.
 func (p *guildPlayer) advanceQueue() {
 	p.queueMutex.Lock()
 	if p.queue.Len() == 0 {
 		p.queueMutex.Unlock()
+		slog.Debug("queue empty, going idle", "guild_id", p.guildID)
 		p.states.setState(Idle)
 		return
 	}
 	item := p.queue.PopFront()
+	remaining := p.queue.Len()
 	p.queueMutex.Unlock()
 
+	slog.Debug("advancing to next track", "guild_id", p.guildID, "query", item.query, "remaining_in_queue", remaining)
 	p.currentItem = item
 	p.states.setState(Playing)
+	p.startPlayback()
+	p.announceNowPlaying()
 }
 
 // startPlayback hands the current item to the audio player; it returns as
@@ -182,6 +201,7 @@ func (p *guildPlayer) startPlayback() {
 	vc := p.currentVc
 	p.vcMutex.Unlock()
 
+	slog.Debug("handing track to audio player", "guild_id", p.guildID, "title", p.currentItem.result.Info.Title)
 	p.dcPlayer.Play(discord.PlayerContext{
 		Vc:     vc,
 		Result: p.currentItem.result,
@@ -194,41 +214,66 @@ func (p *guildPlayer) startPlayback() {
 // the /play command itself skips its own "queued" message in that case.
 func (p *guildPlayer) announceNowPlaying() {
 	if p.announceChannelID == "" {
+		slog.Debug("no announce channel set, skipping now-playing message", "guild_id", p.guildID)
 		return
 	}
 
 	track := TrackInfo{
-		Title:     p.currentItem.result.Info.Title,
-		URL:       p.currentItem.result.Info.WebpageURL,
-		Thumbnail: p.currentItem.result.Info.Thumbnail,
+		Title:       p.currentItem.result.Info.Title,
+		URL:         p.currentItem.result.Info.WebpageURL,
+		Thumbnail:   p.currentItem.result.Info.Thumbnail,
+		RequestedBy: p.currentItem.requestedBy,
 	}
 	if _, err := p.session.ChannelMessageSendEmbed(p.announceChannelID, track.Embed("Now playing", embedColorNowPlaying)); err != nil {
-		slog.Warn("error announcing now playing", "error", err)
+		slog.Warn("error announcing now playing", "guild_id", p.guildID, "error", err)
+		return
 	}
+	slog.Debug("posted now-playing message", "guild_id", p.guildID, "channel_id", p.announceChannelID, "title", track.Title)
+}
+
+// requesterName is the display name to credit in "Requested by" -- the
+// member's nickname if they have one, else their username.
+func requesterName(i *discordgo.Interaction) string {
+	if i.Member == nil || i.Member.User == nil {
+		return ""
+	}
+	if i.Member.Nick != "" {
+		return i.Member.Nick
+	}
+	return i.Member.User.Username
 }
 
 func (p *guildPlayer) enqueueBack(item queueItem) {
 	p.queueMutex.Lock()
 	p.queue.PushBack(item)
+	size := p.queue.Len()
 	p.queueMutex.Unlock()
+
+	slog.Debug("enqueued track at back", "guild_id", p.guildID, "query", item.query, "queue_size", size)
 }
 
 func (p *guildPlayer) enqueueFront(item queueItem) {
 	p.queueMutex.Lock()
 	p.queue.PushFront(item)
+	size := p.queue.Len()
 	p.queueMutex.Unlock()
+
+	slog.Debug("enqueued track at front", "guild_id", p.guildID, "query", item.query, "queue_size", size)
 }
 
 func (p *guildPlayer) removeQueueFront(count uint) {
 	p.queueMutex.Lock()
 	defer p.queueMutex.Unlock()
 
+	removed := uint(0)
 	for range count {
 		if p.queue.Len() == 0 {
-			return
+			break
 		}
 		p.queue.PopFront()
+		removed++
 	}
+	slog.Debug("removed tracks from queue front", "guild_id", p.guildID, "requested", count, "removed", removed, "queue_size", p.queue.Len())
 }
 
 // initVc joins the interacting member's voice channel if not already
@@ -257,6 +302,7 @@ func (p *guildPlayer) initVc(i *discordgo.Interaction) error {
 		return errors.New("you need to be in a voice channel")
 	}
 
+	slog.Debug("joining voice channel", "guild_id", p.guildID, "channel_id", channelID)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -268,10 +314,12 @@ func (p *guildPlayer) initVc(i *discordgo.Interaction) error {
 	// Discord requires DAVE (E2EE) for voice; frames sent before the DAVE
 	// handshake completes go out unencrypted and get dropped, so wait for it
 	// here rather than losing the first moment of audio on every track.
+	slog.Debug("waiting for DAVE encryption to be ready", "guild_id", p.guildID)
 	if err := vc.WaitForDAVEReady(ctx); err != nil {
 		return fmt.Errorf("waiting for voice encryption: %w", err)
 	}
 
+	slog.Debug("voice channel ready", "guild_id", p.guildID, "channel_id", channelID)
 	p.currentVc = vc
 	return nil
 }
@@ -283,7 +331,8 @@ func (p *guildPlayer) speaking(b bool) {
 	if p.currentVc == nil {
 		return
 	}
+	slog.Debug("setting speaking status", "guild_id", p.guildID, "speaking", b)
 	if err := p.currentVc.Speaking(b); err != nil {
-		slog.Warn("error setting speaking status", "error", err)
+		slog.Warn("error setting speaking status", "guild_id", p.guildID, "error", err)
 	}
 }

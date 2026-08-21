@@ -8,6 +8,8 @@ import (
 // StateMachine drives one guildPlayer through Stopped -> Idle ->
 // Playing/Paused. Transitions only happen from controlLoop, one at a time.
 type StateMachine struct {
+	guildID string
+
 	currentState State
 
 	stateStopped State
@@ -17,7 +19,7 @@ type StateMachine struct {
 }
 
 func NewStateMachine(p *guildPlayer) *StateMachine {
-	sm := &StateMachine{}
+	sm := &StateMachine{guildID: p.guildID}
 
 	sm.stateStopped = stateStopped{p}
 	sm.stateIdle = stateIdle{p}
@@ -36,7 +38,7 @@ func (sm *StateMachine) setState(newStateName StateName) {
 	if sm.currentState.State() == newStateName {
 		return
 	}
-	slog.Info("player state change", "from", sm.currentState.State(), "to", newStateName)
+	slog.Info("player state change", "guild_id", sm.guildID, "from", sm.currentState.State(), "to", newStateName)
 
 	oldState := sm.currentState
 	oldState.OnExit()

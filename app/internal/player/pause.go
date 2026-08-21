@@ -53,7 +53,9 @@ func (p *pauseCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCrea
 		},
 	}); err != nil {
 		slog.Warn("error responding to command prompt", "error", err)
+		return
 	}
+	scheduleCleanup(s, i.Interaction)
 }
 
 func togglePauseMessage(state StateName) string {

@@ -3,6 +3,7 @@ package player
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/wader/goutubedl"
@@ -29,6 +30,7 @@ func (r *resolver) resolve(ctx context.Context, query string) (goutubedl.Result,
 	if r.maxDuration > 0 {
 		duration := time.Duration(result.Info.Duration * float64(time.Second))
 		if duration > r.maxDuration {
+			slog.Debug("rejecting track, too long", "title", result.Info.Title, "duration", duration, "max_duration", r.maxDuration)
 			return goutubedl.Result{}, fmt.Errorf("video is too long (%s, max %s)", duration.Round(time.Second), r.maxDuration)
 		}
 	}
