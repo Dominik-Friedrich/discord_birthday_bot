@@ -4,7 +4,7 @@ volumes:
 services:
   database:
     image: postgres
-
+    restart: unless-stopped
     ports:
       - ${BOT_DATABASE_PORT}:5432
     volumes:
@@ -18,7 +18,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    restart: always
+    restart: unless-stopped
     image: birthday_bot
     env_file: ./.env
     depends_on:
