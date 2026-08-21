@@ -8,6 +8,12 @@ import (
 	"os/signal"
 	"time"
 
+	// The runtime image has no OS timezone database, so embed Go's copy
+	// directly into the binary. Without this, birthday.Birthday's
+	// gocron.WithLocation(time.Local) - and any TZ env var an operator
+	// sets - would silently resolve to UTC.
+	_ "time/tzdata"
+
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/birthday"
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/bot"
 	"github.com/Dominik-Friedrich/discord_birthday_bot/internal/complaint"
